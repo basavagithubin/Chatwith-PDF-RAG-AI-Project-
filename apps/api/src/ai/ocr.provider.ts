@@ -21,29 +21,91 @@ export class BuiltinOCRProvider implements OCRProvider {
   }
 }
 
+/**
+ * Load a canvas implementation. `@napi-rs/canvas` ships prebuilt binaries, so it
+ * is tried first; plain `canvas` needs a native toolchain and is only a fallback.
+ */
+const loadCreateCanvas = async (): Promise<((w: number, h: number) => any) | null> => {
+  const napi = await import('@napi-rs/canvas').catch(() => null as any);
+  if (napi?.createCanvas) {
+    // pdf.js only auto-polyfills these from the native `canvas` package, which we
+    // avoid because it needs a compiler toolchain. Supply them from napi-rs.
+    const globals = globalThis as Record<string, unknown>;
+    for (const name of ['DOMMatrix', 'Path2D', 'ImageData'] as const) {
+      if (!globals[name] && napi[name]) globals[name] = napi[name];
+    }
+    return napi.createCanvas;
+  }
+
+  const legacy = await import('canvas').catch(() => null as any);
+  if (legacy?.createCanvas) return legacy.createCanvas;
+  return null;
+};
+
+/**
+ * pdf.js falls back to its own factory that `require`s the native `canvas`
+ * package. Supplying a factory keeps rendering on the prebuilt implementation.
+ */
+const buildCanvasFactory = (createCanvas: (w: number, h: number) => any) => ({
+  create(width: number, height: number) {
+    const canvas = createCanvas(Math.max(1, width), Math.max(1, height));
+    return { canvas, context: canvas.getContext('2d') };
+  },
+  reset(entry: { canvas: any }, width: number, height: number) {
+    entry.canvas.width = Math.max(1, width);
+    entry.canvas.height = Math.max(1, height);
+  },
+  destroy(entry: { canvas: any; context: any }) {
+    if (entry.canvas) {
+      entry.canvas.width = 0;
+      entry.canvas.height = 0;
+    }
+    entry.canvas = null;
+    entry.context = null;
+  }
+});
+
+const ocrScale = () => {
+  const scale = Number(process.env.OCR_RENDER_SCALE || 2);
+  return Number.isFinite(scale) && scale > 0 ? Math.min(scale, 4) : 2;
+};
+
 const tryTesseractOcr = async (filePath: string, pageNumber: number): Promise<string | null> => {
   try {
     // Optional dependency path — skip quietly when canvas/tesseract are unavailable.
-    const [{ createWorker }, canvasMod] = await Promise.all([
+    const [tesseract, createCanvas] = await Promise.all([
       import('tesseract.js').catch(() => null as any),
-      import('canvas').catch(() => null as any)
+      loadCreateCanvas()
     ]);
-    if (!createWorker || !canvasMod?.createCanvas) return null;
+    const createWorker = tesseract?.createWorker ?? tesseract?.default?.createWorker;
+    if (!createWorker || !createCanvas) return null;
 
     const buffer = await fs.readFile(filePath);
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer), verbosity: 0 });
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      verbosity: 0,
+      canvasFactory: buildCanvasFactory(createCanvas)
+    });
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 2 });
-    const canvas = canvasMod.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    const viewport = page.getViewport({ scale: ocrScale() });
+    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
     const context = canvas.getContext('2d');
+
+    // pdf.js draws with transparency; OCR needs an opaque white background.
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context as any, viewport }).promise;
 
-    const worker = await createWorker('eng');
-    const result = await worker.recognize(canvas.toBuffer('image/png'));
-    await worker.terminate();
-    await pdf.destroy();
-    return result?.data?.text?.trim() || null;
+    const png: Buffer = canvas.toBuffer('image/png');
+    const worker = await createWorker(process.env.OCR_LANGUAGE || 'eng');
+    try {
+      const result = await worker.recognize(png);
+      return result?.data?.text?.trim() || null;
+    } finally {
+      await worker.terminate().catch(() => undefined);
+      await pdf.destroy().catch(() => undefined);
+    }
   } catch (error) {
     console.warn(`OCR unavailable for page ${pageNumber}:`, error instanceof Error ? error.message : error);
     return null;

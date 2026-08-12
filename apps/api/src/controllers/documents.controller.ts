@@ -9,6 +9,15 @@ import { getChapterGraphByNumber, invalidateGraphCache } from '../services/chapt
 import { getDocumentFilePath } from '../services/storage.service.js';
 import fs from 'fs/promises';
 
+const fileExists = async (filePath: string) => {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const initUpload = async (req: Request, res: Response) => {
   const { name, size, checksum, chunkCount } = req.body;
   if (!name || !String(name).toLowerCase().endsWith('.pdf') || !Number.isFinite(Number(size)) || Number(size) <= 0 || !checksum || !Number.isInteger(Number(chunkCount)) || Number(chunkCount) <= 0) {
@@ -55,7 +64,13 @@ export const completeUpload = async (req: Request, res: Response) => {
 export const listDocuments = async (req: Request, res: Response) => {
   const db = getDatabase();
   const result = await db.query('SELECT id, name, size, status, page_count, created_at FROM documents ORDER BY created_at DESC');
-  res.json(result.rows);
+  const rows = await Promise.all(
+    result.rows.map(async (row) => ({
+      ...row,
+      sourceAvailable: await fileExists(getDocumentFilePath(row.id))
+    }))
+  );
+  res.json(rows);
 };
 
 export const getDocument = async (req: Request, res: Response) => {
@@ -99,6 +114,16 @@ export const reprocessDocument = async (req: Request, res: Response) => {
   const db = getDatabase();
   const exists = await db.query('SELECT id FROM documents WHERE id=$1', [id]);
   if (!exists.rowCount) return res.status(404).json({ error: 'DOCUMENT_NOT_FOUND' });
+
+  // Reprocessing wipes pages/chunks/embeddings, so refuse when the source PDF is
+  // gone — otherwise the extracted text is destroyed with no way to rebuild it.
+  const sourceAvailable = await fileExists(getDocumentFilePath(id));
+  if (!sourceAvailable) {
+    return res.status(409).json({
+      error: 'SOURCE_FILE_MISSING',
+      message: 'The original PDF is no longer in storage. Re-upload the file before reprocessing.'
+    });
+  }
 
   // Clear derived data so extraction/chunking/embeddings fully regenerate.
   await db.query(

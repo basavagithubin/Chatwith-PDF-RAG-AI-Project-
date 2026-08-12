@@ -1,42 +1,122 @@
 {
-  "version": 1,
-  "description": "Gold Q&A set for Portfhelio accuracy eval. Match documents by nameContains (case-insensitive). Update expectedPages/keyFacts after verifying your PDFs.",
+  "version": 2,
+  "description": "Gold Q&A set for PDFChat accuracy eval. Match documents by nameContains (case-insensitive). `expectedPages` is derived from raw page text by scripts/ground-gold-questions.mjs — edit `groundTruthTerms` and re-run that script instead of hand-editing pages.",
   "sets": [
     {
       "id": "garuda-purana",
-      "nameContains": ["garuda", "garuḍa"],
+      "nameContains": [
+        "garuda",
+        "garuḍa"
+      ],
       "items": [
         {
           "id": "gp-yama-loka",
           "question": "What is Yama Loka?",
           "intent": "describe",
-          "expectedPages": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-          "keyFacts": ["yama", "death", "soul", "after"],
+          "groundTruthTerms": [
+            "yama loka",
+            "yamaloka",
+            "abode of yama",
+            "city of yama"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            10,
+            11,
+            16,
+            17,
+            23,
+            39,
+            64,
+            71,
+            80
+          ],
+          "keyFacts": [
+            "yama",
+            "death",
+            "soul",
+            "after"
+          ],
           "minKeyFacts": 2
         },
         {
           "id": "gp-chapter-1-explain",
           "question": "Explain chapter 1",
           "intent": "chapter",
-          "expectedPages": [1, 2, 3, 4, 5],
-          "keyFacts": ["chapter", "overview"],
+          "groundTruthTerms": [
+            "an account of the miseries",
+            "miseries of the sinful"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            4,
+            8
+          ],
+          "keyFacts": [
+            "chapter",
+            "overview"
+          ],
           "minKeyFacts": 1
         },
         {
           "id": "gp-list-chapters",
           "question": "List the chapters in this book",
           "intent": "list",
-          "expectedPages": [],
-          "keyFacts": ["chapter"],
+          "groundTruthTerms": [
+            "contents",
+            "table of contents"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            4
+          ],
+          "keyFacts": [
+            "chapter"
+          ],
           "minKeyFacts": 1
         },
         {
           "id": "gp-graph-ch1",
           "question": "Create a concept map for chapter 1",
           "intent": "graph",
-          "expectedPages": [1, 2, 3, 4, 5],
-          "keyFacts": ["graph", "concept", "chapter"],
+          "groundTruthTerms": [
+            "an account of the miseries",
+            "miseries of the sinful"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            4,
+            8
+          ],
+          "keyFacts": [
+            "graph",
+            "concept",
+            "chapter"
+          ],
           "minKeyFacts": 1
+        },
+        {
+          "id": "gp-judgement",
+          "question": "What happens to the soul after death according to this text?",
+          "intent": "describe",
+          "groundTruthTerms": [
+            "after death",
+            "departed soul",
+            "the dying man"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            40,
+            44,
+            45,
+            63
+          ],
+          "keyFacts": [
+            "soul",
+            "death",
+            "body"
+          ],
+          "minKeyFacts": 2
         },
         {
           "id": "gp-weak-context",
@@ -50,22 +130,52 @@
     },
     {
       "id": "purusha-sukta",
-      "nameContains": ["purusha", "puruṣa", "sukta"],
+      "nameContains": [
+        "purusha",
+        "puruṣa",
+        "sukta"
+      ],
       "items": [
         {
           "id": "ps-describe",
           "question": "What is the Purusha Sukta about?",
           "intent": "describe",
-          "expectedPages": [1, 2, 3, 4, 5],
-          "keyFacts": ["purusha", "creation", "hymn"],
+          "groundTruthTerms": [
+            "purusha",
+            "puruṣa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            8,
+            9
+          ],
+          "keyFacts": [
+            "purusha",
+            "creation",
+            "hymn"
+          ],
           "minKeyFacts": 1
         },
         {
           "id": "ps-chapter-1",
           "question": "Summarize chapter 1",
           "intent": "chapter",
-          "expectedPages": [1, 2, 3],
-          "keyFacts": ["chapter"],
+          "groundTruthTerms": [
+            "purusha sukta",
+            "sukta"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            1
+          ],
+          "keyFacts": [
+            "chapter"
+          ],
           "minKeyFacts": 1
         },
         {
@@ -80,7 +190,9 @@
     },
     {
       "id": "generic-fallback",
-      "nameContains": ["*"],
+      "nameContains": [
+        "*"
+      ],
       "items": [
         {
           "id": "gen-overview",

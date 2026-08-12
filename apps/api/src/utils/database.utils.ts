@@ -104,6 +104,13 @@ export const initDatabase = async () => {
     }
   }
 
+  // PGlite does not always materialise the inline UNIQUE on document_chunk_id, and
+  // `ON CONFLICT (document_chunk_id)` needs an inferable unique index to exist.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS document_embeddings_chunk_key
+    ON document_embeddings (document_chunk_id)
+  `);
+
   try {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS document_embeddings_embedding_idx

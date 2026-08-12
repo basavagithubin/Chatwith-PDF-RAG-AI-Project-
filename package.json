@@ -13,7 +13,10 @@
     "dev:all": "npm run dev:local",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
-    "eval:accuracy": "npm run eval:accuracy --workspace=pdf-chat-ai-api"
+    "eval:accuracy": "npm run eval:accuracy --workspace=pdf-chat-ai-api",
+    "eval:baseline": "npm run eval:baseline --workspace=pdf-chat-ai-api",
+    "eval:ground": "npm run eval:ground --workspace=pdf-chat-ai-api",
+    "reprocess:all": "npm run reprocess:all --workspace=pdf-chat-ai-api"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

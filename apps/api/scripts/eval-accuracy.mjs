@@ -32,7 +32,31 @@ const insufficientPatterns = [
   /outside (the|this) (document|pdf|context)/i
 ];
 
+const SAVE_BASELINE = process.argv.includes('--save-baseline');
+const COMPARED_METRICS = [
+  'avgScore',
+  'retrievalHitRate',
+  'retrievalRecall',
+  'factCoverageRate',
+  'noHallucinationRate'
+];
+
 const normalize = (value) => String(value || '').toLowerCase();
+
+const readBaseline = async (baselinePath) => {
+  try {
+    return JSON.parse(await fs.readFile(baselinePath, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const formatDelta = (before, after) => {
+  if (before == null || after == null) return `${before ?? 'n/a'} -> ${after ?? 'n/a'}`;
+  const delta = after - before;
+  const sign = delta > 0 ? '+' : '';
+  return `${before} -> ${after} (${sign}${delta.toFixed(3)})`;
+};
 
 const sourcePages = (result) => {
   const pages = new Set();
@@ -156,11 +180,26 @@ const main = async () => {
     process.exit(1);
   }
 
+  const health = await fetchJson(`${API_BASE}/health`).catch(() => null);
+  const providers = health?.providers || null;
+
   const report = {
     generatedAt: new Date().toISOString(),
     apiBase: API_BASE,
+    provider: providers ? `llm=${providers.llm}, embedding=${providers.embedding}` : 'unknown',
+    providers,
     documents: [],
-    summary: { items: 0, avgScore: 0, retrievalHits: 0, retrievalTotal: 0, factPass: 0, factTotal: 0, hallucinationPass: 0, hallucinationTotal: 0 }
+    summary: {
+      items: 0,
+      avgScore: 0,
+      retrievalHits: 0,
+      retrievalTotal: 0,
+      retrievalRecallSum: 0,
+      factPass: 0,
+      factTotal: 0,
+      hallucinationPass: 0,
+      hallucinationTotal: 0
+    }
   };
 
   for (const doc of ready) {
@@ -184,6 +223,7 @@ const main = async () => {
         report.summary.avgScore += row.score;
         if (row.retrieval) {
           report.summary.retrievalTotal += 1;
+          report.summary.retrievalRecallSum += row.retrieval.recall;
           if (row.retrieval.hit) report.summary.retrievalHits += 1;
         }
         if (item.keyFacts?.length) {
@@ -213,6 +253,10 @@ const main = async () => {
   report.summary.retrievalHitRate = report.summary.retrievalTotal
     ? Number((report.summary.retrievalHits / report.summary.retrievalTotal).toFixed(3))
     : null;
+  report.summary.retrievalRecall = report.summary.retrievalTotal
+    ? Number((report.summary.retrievalRecallSum / report.summary.retrievalTotal).toFixed(3))
+    : null;
+  delete report.summary.retrievalRecallSum;
   report.summary.factCoverageRate = report.summary.factTotal
     ? Number((report.summary.factPass / report.summary.factTotal).toFixed(3))
     : null;
@@ -228,6 +272,24 @@ const main = async () => {
 
   console.log('\n=== Accuracy summary ===');
   console.log(JSON.stringify(report.summary, null, 2));
+
+  const baselinePath = path.join(outDir, 'baseline.json');
+  const baseline = await readBaseline(baselinePath);
+  if (baseline) {
+    console.log('\n=== Change vs baseline ===');
+    console.log(`baseline taken ${baseline.generatedAt} (provider: ${baseline.provider || 'unknown'})`);
+    for (const metric of COMPARED_METRICS) {
+      console.log(`  ${metric}: ${formatDelta(baseline.summary?.[metric], report.summary[metric])}`);
+    }
+  }
+
+  if (SAVE_BASELINE) {
+    await fs.writeFile(baselinePath, JSON.stringify(report, null, 2), 'utf8');
+    console.log(`\nBaseline updated at ${baselinePath}`);
+  } else if (!baseline) {
+    console.log('\nNo baseline recorded yet. Run with --save-baseline to freeze this run as the comparison point.');
+  }
+
   console.log(`Report written to ${outPath}`);
 };
 

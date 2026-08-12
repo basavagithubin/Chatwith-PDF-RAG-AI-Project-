@@ -479,7 +479,14 @@ export const analyzeChapter = async (documentId: string, request: ChapterRequest
   await loadChapterChunks(documentId, boundary.startPage, boundary.endPage);
 
   const refined = await refineWithLLM(knowledge, request.mode);
-  const answer = refined || renderKnowledge(knowledge, request.mode);
+  const rendered = refined || renderKnowledge(knowledge, request.mode);
+  const answer = boundary.synthesized
+    ? [
+        rendered,
+        '',
+        `> This document has no chapter headings, so pages ${boundary.startPage}–${boundary.endPage} were analysed as "chapter ${boundary.chapterNumber}".`
+      ].join('\n')
+    : rendered;
 
   const sources = knowledge.sources.map((source) => ({
     documentId,
@@ -495,7 +502,8 @@ export const analyzeChapter = async (documentId: string, request: ChapterRequest
       mode: request.mode,
       chapterNumber: knowledge.chapterNumber,
       chapterTitle: knowledge.chapterTitle,
-      pageRange: knowledge.pageRange
+      pageRange: knowledge.pageRange,
+      synthesizedRange: Boolean(boundary.synthesized)
     }
   };
 };

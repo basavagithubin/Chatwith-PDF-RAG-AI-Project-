@@ -1,10 +1,18 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const storageRoot = path.resolve(process.env.LOCAL_STORAGE_PATH ?? './storage');
+// Anchor relative storage paths to the repo root. Resolving against process.cwd()
+// would scatter uploads wherever the API happened to be launched from.
+// This file lives at apps/api/{src,dist}/services/, so the root is four levels up.
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const configuredPath = process.env.LOCAL_STORAGE_PATH ?? './storage';
+const storageRoot = path.isAbsolute(configuredPath)
+  ? configuredPath
+  : path.resolve(repoRoot, configuredPath);
 
 export const ensureStorage = async () => {
   await fs.mkdir(storageRoot, { recursive: true });

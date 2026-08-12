@@ -1,0 +1,320 @@
+{
+  "generatedAt": "2026-08-12T11:11:36.588Z",
+  "apiBase": "http://127.0.0.1:5000",
+  "provider": "llm=mock, embedding=mock",
+  "providers": {
+    "llm": "mock",
+    "embedding": "mock",
+    "chatModel": "gpt-4o-mini",
+    "embeddingModel": "text-embedding-3-small"
+  },
+  "documents": [
+    {
+      "documentId": "193bc6fd-3032-4b34-9bf4-59ff6c595c66",
+      "documentName": "ernest-wood_s-v-subrahmanyam_garuda-purana.pdf",
+      "goldSetId": "garuda-purana",
+      "results": [
+        {
+          "id": "gp-yama-loka",
+          "question": "What is Yama Loka?",
+          "intent": "describe",
+          "responseIntent": "DOCUMENT_QUESTION",
+          "responseType": "TEXT_RESPONSE",
+          "score": 0.75,
+          "retrieval": {
+            "hit": true,
+            "recall": 0.3333333333333333,
+            "hits": [
+              10,
+              17,
+              39
+            ]
+          },
+          "facts": {
+            "score": 0.5,
+            "matched": [
+              "yama"
+            ],
+            "required": 2
+          },
+          "noHallucination": null,
+          "pages": [
+            9,
+            10,
+            17,
+            8,
+            39,
+            18
+          ],
+          "latencyMs": 133,
+          "answerPreview": "## Yama Loka ### Overview According to the document, **Yama Loka** is portrayed through these teachings: What are the torments like that the sinful suffers, having passed along the path to Yama's realm into the realm of "
+        },
+        {
+          "id": "gp-chapter-1-explain",
+          "question": "Explain chapter 1",
+          "intent": "chapter",
+          "responseIntent": "CHAPTER_ANALYSIS",
+          "responseType": "TEXT_RESPONSE",
+          "score": 1,
+          "retrieval": {
+            "hit": true,
+            "recall": 0.5,
+            "hits": [
+              8
+            ]
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "chapter",
+              "overview"
+            ],
+            "required": 1
+          },
+          "noHallucination": null,
+          "pages": [
+            8,
+            10,
+            12
+          ],
+          "latencyMs": 55,
+          "answerPreview": "# Chapter I — An Account Of The Miseries Of The Sinful In This World And The Other ## Overview The tree Madhusūdana, -- whose firm root is Law, whose trunk is the Vedas, whose abundant branches are the Purāṇas, whose flo"
+        },
+        {
+          "id": "gp-list-chapters",
+          "question": "List the chapters in this book",
+          "intent": "list",
+          "responseIntent": "CHAPTER_LIST",
+          "responseType": "TEXT_RESPONSE",
+          "score": 1,
+          "retrieval": {
+            "hit": true,
+            "recall": 1,
+            "hits": [
+              4
+            ]
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "chapter"
+            ],
+            "required": 1
+          },
+          "noHallucination": null,
+          "pages": [
+            4,
+            12,
+            22,
+            30
+          ],
+          "latencyMs": 20,
+          "answerPreview": "## Table of contents I found **11 chapters** in this document: - **I. An Account Of The Miseries Of The Sinful In This World And The Other** - **II. An Account Of The Way Of Yama** - **III. An Account Of The Torments Of "
+        },
+        {
+          "id": "gp-graph-ch1",
+          "question": "Create a concept map for chapter 1",
+          "intent": "graph",
+          "responseIntent": "GRAPH_GENERATION",
+          "responseType": "GRAPH_RESPONSE",
+          "score": 1,
+          "retrieval": {
+            "hit": true,
+            "recall": 0.5,
+            "hits": [
+              8
+            ]
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "graph",
+              "concept",
+              "chapter"
+            ],
+            "required": 1
+          },
+          "noHallucination": null,
+          "pages": [
+            8,
+            11,
+            9,
+            10,
+            12
+          ],
+          "latencyMs": 30,
+          "answerPreview": "# Chapter I — Concept Graph ## Overview Here is an interactive concept graph for **An Account Of The Miseries Of The Sinful In This World And The Other** (pages 8–12). It highlights the main theme, key concepts, supporti"
+        },
+        {
+          "id": "gp-judgement",
+          "question": "What happens to the soul after death according to this text?",
+          "intent": "describe",
+          "responseIntent": "DOCUMENT_QUESTION",
+          "responseType": "TEXT_RESPONSE",
+          "score": 0.5,
+          "retrieval": {
+            "hit": false,
+            "recall": 0,
+            "hits": []
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "soul",
+              "death"
+            ],
+            "required": 2
+          },
+          "noHallucination": null,
+          "pages": [
+            6,
+            5,
+            50,
+            7,
+            28,
+            14
+          ],
+          "latencyMs": 50,
+          "answerPreview": "## What happens to soul after death according to ### Overview After being thus purified by Hell- fire, the soul is re -born with keener conscience and under circumstances where it can, if it so chooses, make better use o"
+        },
+        {
+          "id": "gp-weak-context",
+          "question": "What does this PDF say about quantum entanglement experiments at CERN?",
+          "intent": "describe",
+          "responseIntent": "DOCUMENT_QUESTION",
+          "responseType": "TEXT_RESPONSE",
+          "score": 1,
+          "retrieval": null,
+          "facts": {
+            "score": 1,
+            "matched": [],
+            "required": 0
+          },
+          "noHallucination": true,
+          "pages": [
+            40,
+            33,
+            81,
+            9,
+            46,
+            5,
+            22,
+            56,
+            63,
+            27,
+            39,
+            58
+          ],
+          "latencyMs": 51,
+          "answerPreview": "## What does this PDF say quantum entanglement experiments Not enough evidence in the retrieved document context to answer this confidently. The uploaded PDF does not appear to discuss this topic in the passages I found."
+        }
+      ]
+    },
+    {
+      "documentId": "9ee61238-7dc3-45a8-a738-a247d94d0950",
+      "documentName": "Purusha_Sukta_Complete_Formats.pdf",
+      "goldSetId": "purusha-sukta",
+      "results": [
+        {
+          "id": "ps-describe",
+          "question": "What is the Purusha Sukta about?",
+          "intent": "describe",
+          "responseIntent": "DOCUMENT_QUESTION",
+          "responseType": "TEXT_RESPONSE",
+          "score": 1,
+          "retrieval": {
+            "hit": true,
+            "recall": 1,
+            "hits": [
+              1,
+              2,
+              3,
+              4,
+              6,
+              8,
+              9
+            ]
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "purusha"
+            ],
+            "required": 1
+          },
+          "noHallucination": null,
+          "pages": [
+            1,
+            3,
+            4,
+            2,
+            8,
+            6,
+            9
+          ],
+          "latencyMs": 30,
+          "answerPreview": "## Purusha Sukta ### Overview According to the document, **Purusha Sukta** is portrayed through these teachings: Every sense organ in every living being functions only because of the presence of the Purusha within. ### W"
+        },
+        {
+          "id": "ps-chapter-1",
+          "question": "Summarize chapter 1",
+          "intent": "chapter",
+          "responseIntent": "CHAPTER_ANALYSIS",
+          "responseType": "TEXT_RESPONSE",
+          "score": 0.5,
+          "retrieval": {
+            "hit": false,
+            "recall": 0,
+            "hits": []
+          },
+          "facts": {
+            "score": 1,
+            "matched": [
+              "chapter"
+            ],
+            "required": 1
+          },
+          "noHallucination": null,
+          "pages": [],
+          "latencyMs": 12,
+          "answerPreview": "## Chapter analysis unavailable I could not confidently detect the boundaries for Chapter I. Try using the exact chapter heading from the PDF, for example: - Explain Chapter XI. An Account Of The Ten-Days' Ceremonies - S"
+        },
+        {
+          "id": "ps-weak-context",
+          "question": "How does this text describe blockchain consensus algorithms?",
+          "intent": "describe",
+          "responseIntent": "DOCUMENT_QUESTION",
+          "responseType": "TEXT_RESPONSE",
+          "score": 1,
+          "retrieval": null,
+          "facts": {
+            "score": 1,
+            "matched": [],
+            "required": 0
+          },
+          "noHallucination": true,
+          "pages": [
+            2,
+            1
+          ],
+          "latencyMs": 26,
+          "answerPreview": "## How does this text blockchain consensus algorithms Not enough evidence in the retrieved document context to answer this confidently. The uploaded PDF does not appear to discuss this topic in the passages I found. Try "
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "items": 9,
+    "avgScore": 0.861,
+    "retrievalHits": 5,
+    "retrievalTotal": 7,
+    "factPass": 6,
+    "factTotal": 7,
+    "hallucinationPass": 2,
+    "hallucinationTotal": 2,
+    "retrievalHitRate": 0.714,
+    "retrievalRecall": 0.476,
+    "factCoverageRate": 0.857,
+    "noHallucinationRate": 1
+  }
+}

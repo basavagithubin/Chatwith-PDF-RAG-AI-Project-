@@ -27,6 +27,8 @@ export type ChapterBoundary = {
   startPage: number;
   endPage: number;
   headingMatches: string[];
+  /** True when the range was derived by splitting a heading-less document into parts. */
+  synthesized?: boolean;
 };
 
 export type ChapterSection = {

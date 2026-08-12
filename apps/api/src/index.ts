@@ -7,6 +7,7 @@ import documentsRoutes from './routes/documents.routes.js';
 import conversationsRoutes from './routes/conversations.routes.js';
 import rateLimitRoutes from './routes/rateLimit.routes.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
+import { resolveEmbeddingProviderName, resolveLLMProviderName } from './ai/provider.config.js';
 import { initDatabase } from './utils/database.utils.js';
 import { initQueues } from './queues/queues.js';
 import './workers/pdf.worker.js';
@@ -15,7 +16,17 @@ import './workers/embedding.worker.js';
 const app = express();
 const port = Number(process.env.PORT ?? 5000);
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) =>
+  res.json({
+    status: 'ok',
+    providers: {
+      llm: resolveLLMProviderName(),
+      embedding: resolveEmbeddingProviderName(),
+      chatModel: process.env.OPENAI_CHAT_MODEL || null,
+      embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || null
+    }
+  })
+);
 
 app.use(helmet());
 app.use(cors({ origin: true, exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'] }));

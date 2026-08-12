@@ -111,6 +111,38 @@ const scoreHeading = (heading: HeadingHit, request: ChapterRequest) => {
   return score;
 };
 
+const SYNTHETIC_PART_MIN_PAGES = 3;
+const SYNTHETIC_PART_MAX_COUNT = 12;
+
+/**
+ * Short documents (single hymns, articles, handouts) carry no chapter headings,
+ * so "chapter 1" would otherwise be unanswerable. Split them into even parts and
+ * treat the requested number as a part index.
+ */
+const synthesizeBoundary = (pages: PageRow[], chapterNumber: number): ChapterBoundary | null => {
+  const firstPage = pages[0].page_number;
+  const lastPage = pages[pages.length - 1].page_number;
+  const totalPages = lastPage - firstPage + 1;
+
+  const partCount = Math.max(1, Math.min(SYNTHETIC_PART_MAX_COUNT, Math.floor(totalPages / SYNTHETIC_PART_MIN_PAGES)));
+  if (chapterNumber > partCount) return null;
+
+  const partSize = Math.ceil(totalPages / partCount);
+  const startPage = firstPage + (chapterNumber - 1) * partSize;
+  const endPage = Math.min(lastPage, startPage + partSize - 1);
+  if (startPage > lastPage) return null;
+
+  return {
+    chapterNumber,
+    chapterLabel: String(chapterNumber),
+    chapterTitle: partCount === 1 ? 'Full document' : `Part ${chapterNumber} of ${partCount}`,
+    startPage,
+    endPage,
+    headingMatches: [],
+    synthesized: true
+  };
+};
+
 export const findChapterBoundary = async (
   documentId: string,
   request: ChapterRequest
@@ -128,7 +160,11 @@ export const findChapterBoundary = async (
 
   const headings = collectHeadings(pages);
   const sameNumber = headings.filter((heading) => heading.number === request.chapterNumber);
-  if (!sameNumber.length) return null;
+  if (!sameNumber.length) {
+    // Only fall back when the document has no chapter structure at all; a missing
+    // number in a document that *does* have headings is a genuine "no such chapter".
+    return headings.length ? null : synthesizeBoundary(pages, request.chapterNumber);
+  }
 
   const ranked = [...sameNumber].sort((a, b) => scoreHeading(b, request) - scoreHeading(a, request));
   // Prefer non-TOC body heading; fall back to best overall.

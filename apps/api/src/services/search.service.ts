@@ -208,12 +208,15 @@ const buildRagContext = async (documentId: string, query: string) => {
   if (searchTerms.length) {
     const conditions = searchTerms.map((_, index) => `dc.content ILIKE $${index + 2}`);
     const values = searchTerms.map((term) => `%${term}%`);
+    // Rank by how many query terms a chunk matches. Ordering by page number would
+    // truncate to the front of the document and hide better matches later on.
+    const termHits = conditions.map((condition) => `(CASE WHEN ${condition} THEN 1 ELSE 0 END)`).join(' + ');
     const keywordResult = await getDatabase().query(
-      `SELECT dc.id as chunk_id, dc.page_number, dc.content
+      `SELECT dc.id as chunk_id, dc.page_number, dc.content, (${termHits}) AS term_hits
        FROM document_chunks dc
        WHERE dc.document_id = $1
          AND (${conditions.join(' OR ')})
-       ORDER BY dc.page_number ASC, dc.chunk_index ASC
+       ORDER BY term_hits DESC, dc.page_number ASC, dc.chunk_index ASC
        LIMIT $${searchTerms.length + 2}`,
       [documentId, ...values, wantsDetail ? 36 : 18]
     );

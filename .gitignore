@@ -5,7 +5,11 @@ storage/
 node_modules/
 apps/api/dist/
 apps/web/dist/
-apps/api/evals/reports/
+apps/api/evals/reports/*
+!apps/api/evals/reports/baseline.json
 *.log
 .DS_Store
 Thumbs.db
+
+# Tesseract language data downloaded on first OCR run
+*.traineddata
