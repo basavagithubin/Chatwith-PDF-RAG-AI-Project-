@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "lib": ["ES2020"],
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "typeRoots": ["../../node_modules/@types", "../node_modules/@types", "./node_modules/@types"],
+    "types": ["node", "uuid", "pg"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

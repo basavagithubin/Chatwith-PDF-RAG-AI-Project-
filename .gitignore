@@ -1,0 +1,11 @@
+.env
+.env.local
+.data/
+storage/
+node_modules/
+apps/api/dist/
+apps/web/dist/
+apps/api/evals/reports/
+*.log
+.DS_Store
+Thumbs.db

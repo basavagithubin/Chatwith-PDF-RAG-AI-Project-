@@ -1,0 +1,27 @@
+{
+  "name": "pdf-chat-ai",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:services": "node scripts/dev-services.mjs",
+    "dev:api": "npm run build --workspace=pdf-chat-ai-api && npm run start --workspace=pdf-chat-ai-api",
+    "dev:web": "npm run dev --workspace=pdf-chat-ai-web",
+    "dev:local": "concurrently -k -n services,api,web -c blue,green,magenta \"npm run dev:services\" \"wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:6379 && npm run dev:api\" \"wait-on tcp:127.0.0.1:5000 && npm run dev:web\"",
+    "dev:all": "npm run dev:local",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "eval:accuracy": "npm run eval:accuracy --workspace=pdf-chat-ai-api"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@electric-sql/pglite-pgvector": "^0.0.5",
+    "@electric-sql/pglite-socket": "^0.2.7",
+    "concurrently": "^9.1.2",
+    "redis-memory-server": "^0.17.0",
+    "typescript": "^5.7.0",
+    "wait-on": "^8.0.1"
+  }
+}
