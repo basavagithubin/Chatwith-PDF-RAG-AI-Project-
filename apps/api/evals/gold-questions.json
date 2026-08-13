@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "description": "Gold Q&A set for PDFChat accuracy eval. Match documents by nameContains (case-insensitive). `expectedPages` is derived from raw page text by scripts/ground-gold-questions.mjs — edit `groundTruthTerms` and re-run that script instead of hand-editing pages.",
+  "version": 3,
+  "description": "Gold Q&A for PDFChat accuracy. Match documents by nameContains. expectedPages come from scripts/ground-gold-questions.mjs. paraphrases inherit labels. history is prior turns for query rewrite. Stricter fields: mustInclude, mustExclude, requiredItemCount, requiredSections, expectedChunkIds, goldAnswer.",
   "sets": [
     {
       "id": "garuda-purana",
@@ -13,6 +13,13 @@
           "id": "gp-yama-loka",
           "question": "What is Yama Loka?",
           "intent": "describe",
+          "paraphrases": [
+            "tell me about yama loka",
+            "describe yamaloka",
+            "what is the abode of Yama?",
+            "explain the city of yama",
+            "what happens in Yama's realm?"
+          ],
           "groundTruthTerms": [
             "yama loka",
             "yamaloka",
@@ -34,15 +41,41 @@
           "keyFacts": [
             "yama",
             "death",
-            "soul",
-            "after"
+            "soul"
           ],
-          "minKeyFacts": 2
+          "minKeyFacts": 2,
+          "mustInclude": [
+            "yama"
+          ],
+          "mustExclude": [
+            "copyright",
+            "all rights reserved"
+          ],
+          "requiredSections": [
+            "What it is"
+          ],
+          "goldAnswer": "Yama Loka is the realm or abode of Yama, associated with the afterlife of the soul after death. Cite the pages that discuss this in the document.",
+          "expectedChunkIds": [
+            "82c419bd-702b-4a11-ba28-ba3b851b2eea",
+            "78145232-fb2e-4fc6-baec-ac956fbc9af9",
+            "7f3850e5-c8f2-4ef2-a57e-f2fd4bc5dbc3",
+            "67198a94-4279-4f9d-9c32-576602930e36",
+            "877b8aae-6f39-4fd5-9582-e01da6765193",
+            "1d5f0080-7218-4a10-bea4-74a7789f7865",
+            "72f3849f-96fe-41c4-868c-581c26aafe65",
+            "0f7bcab0-8958-4ff8-b59a-23cc4082b864"
+          ]
         },
         {
           "id": "gp-chapter-1-explain",
           "question": "Explain chapter 1",
           "intent": "chapter",
+          "paraphrases": [
+            "summarize chapter 1",
+            "what is chapter I about?",
+            "give an overview of chapter one",
+            "explain the first chapter"
+          ],
           "groundTruthTerms": [
             "an account of the miseries",
             "miseries of the sinful"
@@ -54,14 +87,36 @@
           ],
           "keyFacts": [
             "chapter",
-            "overview"
+            "miser"
           ],
-          "minKeyFacts": 1
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "chapter"
+          ],
+          "mustExclude": [
+            "copyright"
+          ],
+          "expectedChunkIds": [
+            "cd920f38-9d4d-4513-86c3-502e77f625b9",
+            "67fdb813-bbd5-48fa-9b9c-5ea97367ed0b",
+            "3656de5f-8fb4-4904-9aaa-82cb733d627c",
+            "b7997c8c-e6b4-4aaa-9040-8a908475c221",
+            "6a807a14-d9a0-4810-9f8a-c227385f582d",
+            "c79aa7e2-6db6-4314-8c9c-e22f5da05fe7",
+            "ef8558e2-0785-488b-8d63-7533cbbca83d",
+            "7d96b52d-87f9-4098-b836-b4f6fa808990"
+          ]
         },
         {
           "id": "gp-list-chapters",
           "question": "List the chapters in this book",
           "intent": "list",
+          "paraphrases": [
+            "what are the chapter names?",
+            "list all chapters",
+            "table of contents",
+            "name the sections of this book"
+          ],
           "groundTruthTerms": [
             "contents",
             "table of contents"
@@ -73,12 +128,34 @@
           "keyFacts": [
             "chapter"
           ],
-          "minKeyFacts": 1
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "chapter"
+          ],
+          "requiredItemCount": 3,
+          "mustExclude": [
+            "quantum",
+            "olympics"
+          ],
+          "expectedChunkIds": [
+            "cd920f38-9d4d-4513-86c3-502e77f625b9",
+            "67fdb813-bbd5-48fa-9b9c-5ea97367ed0b",
+            "3656de5f-8fb4-4904-9aaa-82cb733d627c",
+            "b7997c8c-e6b4-4aaa-9040-8a908475c221",
+            "6a807a14-d9a0-4810-9f8a-c227385f582d",
+            "c79aa7e2-6db6-4314-8c9c-e22f5da05fe7",
+            "ef8558e2-0785-488b-8d63-7533cbbca83d"
+          ]
         },
         {
           "id": "gp-graph-ch1",
           "question": "Create a concept map for chapter 1",
           "intent": "graph",
+          "paraphrases": [
+            "make a graph of chapter 1",
+            "visualize chapter one",
+            "concept map chapter I"
+          ],
           "groundTruthTerms": [
             "an account of the miseries",
             "miseries of the sinful"
@@ -90,15 +167,29 @@
           ],
           "keyFacts": [
             "graph",
-            "concept",
             "chapter"
           ],
-          "minKeyFacts": 1
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "cd920f38-9d4d-4513-86c3-502e77f625b9",
+            "67fdb813-bbd5-48fa-9b9c-5ea97367ed0b",
+            "3656de5f-8fb4-4904-9aaa-82cb733d627c",
+            "b7997c8c-e6b4-4aaa-9040-8a908475c221",
+            "6a807a14-d9a0-4810-9f8a-c227385f582d",
+            "c79aa7e2-6db6-4314-8c9c-e22f5da05fe7",
+            "ef8558e2-0785-488b-8d63-7533cbbca83d",
+            "7d96b52d-87f9-4098-b836-b4f6fa808990"
+          ]
         },
         {
           "id": "gp-judgement",
           "question": "What happens to the soul after death according to this text?",
           "intent": "describe",
+          "paraphrases": [
+            "describe the afterlife of the departed soul",
+            "what happens when a man dies in this purana?",
+            "after death what does the soul experience?"
+          ],
           "groundTruthTerms": [
             "after death",
             "departed soul",
@@ -113,14 +204,116 @@
           ],
           "keyFacts": [
             "soul",
-            "death",
-            "body"
+            "death"
           ],
-          "minKeyFacts": 2
+          "minKeyFacts": 2,
+          "mustInclude": [
+            "soul",
+            "death"
+          ],
+          "mustExclude": [
+            "blockchain",
+            "olympics"
+          ],
+          "expectedChunkIds": [
+            "df88affe-e59e-4ae1-b40a-760c63ada0fa",
+            "bc48eb83-48a4-41aa-8750-e3542abc4a5e",
+            "5aee087c-c02f-4914-bd0b-76b9eee420ad",
+            "60974765-aff2-4619-a580-2ab9a1003770",
+            "9b8f8bff-2a8d-44fa-a567-8276071f1bf7"
+          ]
+        },
+        {
+          "id": "gp-sloka-or-verse",
+          "question": "Quote a verse or sloka about Yama and explain it",
+          "intent": "sloka",
+          "paraphrases": [
+            "what does a sloka say about yama?",
+            "explain a verse on the way of yama"
+          ],
+          "groundTruthTerms": [
+            "yama"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            10,
+            11,
+            16
+          ],
+          "keyFacts": [
+            "yama"
+          ],
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "yama"
+          ],
+          "expectedChunkIds": [
+            "cd920f38-9d4d-4513-86c3-502e77f625b9",
+            "67fdb813-bbd5-48fa-9b9c-5ea97367ed0b",
+            "3656de5f-8fb4-4904-9aaa-82cb733d627c",
+            "b7997c8c-e6b4-4aaa-9040-8a908475c221",
+            "6a807a14-d9a0-4810-9f8a-c227385f582d",
+            "c79aa7e2-6db6-4314-8c9c-e22f5da05fe7",
+            "ef8558e2-0785-488b-8d63-7533cbbca83d",
+            "c116d765-90cf-4b13-9364-4e8d2ba0f6e2"
+          ]
         },
         {
           "id": "gp-weak-context",
           "question": "What does this PDF say about quantum entanglement experiments at CERN?",
+          "intent": "describe",
+          "paraphrases": [
+            "summarize the Large Hadron Collider results in this book",
+            "what is the Higgs boson mass according to this text?"
+          ],
+          "expectedPages": [],
+          "keyFacts": [],
+          "requireInsufficient": true,
+          "mustExclude": [
+            "yama loka"
+          ]
+        },
+        {
+          "id": "gp-followup-chapter",
+          "question": "tell me more about the first point",
+          "intent": "describe",
+          "history": [
+            {
+              "role": "user",
+              "content": "Explain chapter 1"
+            },
+            {
+              "role": "assistant",
+              "content": "1. Miseries of the sinful\n2. The path after death\n3. Conduct and rites"
+            }
+          ],
+          "groundTruthTerms": [
+            "miseries of the sinful",
+            "an account of the miseries"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            4,
+            8
+          ],
+          "keyFacts": [
+            "miser"
+          ],
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "cd920f38-9d4d-4513-86c3-502e77f625b9",
+            "67fdb813-bbd5-48fa-9b9c-5ea97367ed0b",
+            "3656de5f-8fb4-4904-9aaa-82cb733d627c",
+            "b7997c8c-e6b4-4aaa-9040-8a908475c221",
+            "6a807a14-d9a0-4810-9f8a-c227385f582d",
+            "c79aa7e2-6db6-4314-8c9c-e22f5da05fe7",
+            "ef8558e2-0785-488b-8d63-7533cbbca83d",
+            "7d96b52d-87f9-4098-b836-b4f6fa808990"
+          ]
+        },
+        {
+          "id": "gp-offtopic-ai",
+          "question": "How does this text rank GPT-5 versus Claude on coding benchmarks?",
           "intent": "describe",
           "expectedPages": [],
           "keyFacts": [],
@@ -140,6 +333,12 @@
           "id": "ps-describe",
           "question": "What is the Purusha Sukta about?",
           "intent": "describe",
+          "paraphrases": [
+            "tell me about the Purusha Sukta",
+            "what is this hymn describing?",
+            "explain Puruṣa Sūkta",
+            "what is purusa sukta?"
+          ],
           "groundTruthTerms": [
             "purusha",
             "puruṣa"
@@ -156,15 +355,40 @@
           ],
           "keyFacts": [
             "purusha",
-            "creation",
             "hymn"
           ],
-          "minKeyFacts": 1
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "purush"
+          ],
+          "mustExclude": [
+            "copyright",
+            "blockchain"
+          ],
+          "requiredSections": [
+            "What it is"
+          ],
+          "goldAnswer": "The Purusha Sukta is a hymn about the cosmic person (Purusha) and creation. Answer only from the PDF and cite pages.",
+          "expectedChunkIds": [
+            "83508141-384a-4180-8eb4-96752e08bc8f",
+            "57ecbad2-bb49-48ba-915b-841fe2fedf05",
+            "c230f5e7-0e80-42ba-8b5e-5df12c040b1c",
+            "d8cfbc4e-dd5a-4675-9363-2cd3cf9d7b97",
+            "068b2653-5b75-4b10-9ff0-de4b9ce71285",
+            "820793e7-3887-447f-b101-a2b9200e4f88",
+            "1fde5c7c-fef3-43d8-ad10-80ceef75f7e3",
+            "8f3ed276-67af-4f60-b56b-3901e76381ca"
+          ]
         },
         {
           "id": "ps-chapter-1",
           "question": "Summarize chapter 1",
           "intent": "chapter",
+          "paraphrases": [
+            "explain chapter 1",
+            "what is in the first section?",
+            "overview of chapter one"
+          ],
           "groundTruthTerms": [
             "purusha sukta",
             "sukta"
@@ -176,11 +400,486 @@
           "keyFacts": [
             "chapter"
           ],
-          "minKeyFacts": 1
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "83508141-384a-4180-8eb4-96752e08bc8f",
+            "57ecbad2-bb49-48ba-915b-841fe2fedf05",
+            "c230f5e7-0e80-42ba-8b5e-5df12c040b1c"
+          ]
+        },
+        {
+          "id": "ps-verse",
+          "question": "What does the first verse or sloka say?",
+          "intent": "sloka",
+          "paraphrases": [
+            "quote sloka 1",
+            "explain the opening verse",
+            "what is verse one?"
+          ],
+          "groundTruthTerms": [
+            "purusha",
+            "puruṣa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            1,
+            2
+          ],
+          "keyFacts": [
+            "purush"
+          ],
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "83508141-384a-4180-8eb4-96752e08bc8f",
+            "57ecbad2-bb49-48ba-915b-841fe2fedf05",
+            "c230f5e7-0e80-42ba-8b5e-5df12c040b1c",
+            "d8cfbc4e-dd5a-4675-9363-2cd3cf9d7b97",
+            "068b2653-5b75-4b10-9ff0-de4b9ce71285",
+            "820793e7-3887-447f-b101-a2b9200e4f88",
+            "1fde5c7c-fef3-43d8-ad10-80ceef75f7e3",
+            "8f3ed276-67af-4f60-b56b-3901e76381ca"
+          ]
+        },
+        {
+          "id": "ps-creation",
+          "question": "How does this hymn describe creation?",
+          "intent": "describe",
+          "paraphrases": [
+            "what is created from the purusha?",
+            "describe the cosmic person and creation"
+          ],
+          "groundTruthTerms": [
+            "purusha",
+            "puruṣa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            1,
+            2,
+            3
+          ],
+          "keyFacts": [
+            "purush"
+          ],
+          "minKeyFacts": 1,
+          "mustExclude": [
+            "olympics"
+          ],
+          "expectedChunkIds": [
+            "83508141-384a-4180-8eb4-96752e08bc8f",
+            "57ecbad2-bb49-48ba-915b-841fe2fedf05",
+            "c230f5e7-0e80-42ba-8b5e-5df12c040b1c",
+            "d8cfbc4e-dd5a-4675-9363-2cd3cf9d7b97",
+            "068b2653-5b75-4b10-9ff0-de4b9ce71285",
+            "820793e7-3887-447f-b101-a2b9200e4f88",
+            "1fde5c7c-fef3-43d8-ad10-80ceef75f7e3",
+            "8f3ed276-67af-4f60-b56b-3901e76381ca"
+          ]
         },
         {
           "id": "ps-weak-context",
           "question": "How does this text describe blockchain consensus algorithms?",
+          "intent": "describe",
+          "paraphrases": [
+            "what does it say about proof of stake?",
+            "explain ethernet packet switching in this hymn"
+          ],
+          "expectedPages": [],
+          "keyFacts": [],
+          "requireInsufficient": true
+        },
+        {
+          "id": "ps-followup-verse",
+          "question": "explain the first one",
+          "intent": "sloka",
+          "history": [
+            {
+              "role": "user",
+              "content": "What does the first verse or sloka say?"
+            },
+            {
+              "role": "assistant",
+              "content": "1. The Purusha has a thousand heads\n2. He pervades the universe\n3. Creation proceeds from him"
+            }
+          ],
+          "groundTruthTerms": [
+            "purusha",
+            "puruṣa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            1,
+            2
+          ],
+          "keyFacts": [
+            "purush"
+          ],
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "83508141-384a-4180-8eb4-96752e08bc8f",
+            "57ecbad2-bb49-48ba-915b-841fe2fedf05",
+            "c230f5e7-0e80-42ba-8b5e-5df12c040b1c",
+            "d8cfbc4e-dd5a-4675-9363-2cd3cf9d7b97",
+            "068b2653-5b75-4b10-9ff0-de4b9ce71285",
+            "820793e7-3887-447f-b101-a2b9200e4f88",
+            "1fde5c7c-fef3-43d8-ad10-80ceef75f7e3",
+            "8f3ed276-67af-4f60-b56b-3901e76381ca"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "upadesamrta",
+      "nameContains": [
+        "upadesamrta",
+        "updesamrta",
+        "subodhini"
+      ],
+      "items": [
+        {
+          "id": "ua-radha-kund",
+          "question": "tell me about radha kund",
+          "intent": "describe",
+          "paraphrases": [
+            "what is radha kunda?",
+            "tell me about rādhā-kuṇḍa",
+            "describe radha-kunda in this book",
+            "what are the glories of radha kund?",
+            "radha pond near govardhan"
+          ],
+          "groundTruthTerms": [
+            "radha-kunda",
+            "radha-kuṇḍa",
+            "rādhā-kuṇḍa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            13,
+            15,
+            76,
+            77,
+            81
+          ],
+          "keyFacts": [
+            "pond",
+            "bathe",
+            "govardhana"
+          ],
+          "minKeyFacts": 2,
+          "mustInclude": [
+            "kund"
+          ],
+          "mustExclude": [
+            "copyright",
+            "all rights reserved",
+            "blockchain"
+          ],
+          "requiredSections": [
+            "What it is",
+            "Source index"
+          ],
+          "goldAnswer": "Rādhā-kuṇḍa is the sacred pond associated with Rādhā near Govardhana. Cover identity, glories, practices such as bathing, related places, and a source index of pages. Do not cite copyright pages.",
+          "expectedChunkIds": [
+            "5d0e8963-d74c-4ab7-aca4-b7dfc6a86e1d",
+            "4f66ee20-c058-4279-8d08-13dbe3ac9875",
+            "487503b8-8120-46aa-8b00-4cccdee77bcb",
+            "a3f622c0-dd54-4598-b663-83521fa7aa44",
+            "e42a334b-48cd-40f8-9bf1-865392a7c904",
+            "68c35e4d-7501-4a39-8311-dbe1e0880612",
+            "8c548ea4-a79b-4dba-a2e4-be76f243b957",
+            "6c365d53-7186-410a-9e1a-0e10e9033cf8"
+          ]
+        },
+        {
+          "id": "ua-govardhan",
+          "question": "Govardhan hill",
+          "intent": "describe",
+          "paraphrases": [
+            "tell me about Govardhana",
+            "what is govardhan hill?",
+            "describe giriraja govardhana",
+            "govardhana in this book"
+          ],
+          "groundTruthTerms": [
+            "govardhana",
+            "govardhan"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            13,
+            15,
+            76,
+            77
+          ],
+          "keyFacts": [
+            "govardhan",
+            "hill"
+          ],
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "govardhan"
+          ],
+          "mustExclude": [
+            "copyright",
+            "olympics"
+          ],
+          "requiredSections": [
+            "What it is"
+          ],
+          "expectedChunkIds": [
+            "3c4f0c68-99a4-4a26-977d-03334af11534",
+            "4f66ee20-c058-4279-8d08-13dbe3ac9875",
+            "487503b8-8120-46aa-8b00-4cccdee77bcb",
+            "a3f622c0-dd54-4598-b663-83521fa7aa44",
+            "e42a334b-48cd-40f8-9bf1-865392a7c904",
+            "68c35e4d-7501-4a39-8311-dbe1e0880612",
+            "8c548ea4-a79b-4dba-a2e4-be76f243b957",
+            "6c365d53-7186-410a-9e1a-0e10e9033cf8"
+          ]
+        },
+        {
+          "id": "ua-six-urges",
+          "question": "Name 6 urges",
+          "intent": "list",
+          "paraphrases": [
+            "list the six urges",
+            "what are the 6 urges?",
+            "name the six vegam",
+            "enumerate the 6 urges to be controlled",
+            "list six impulses from the sloka"
+          ],
+          "groundTruthTerms": [
+            "urge of speech",
+            "vaco"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            18
+          ],
+          "keyFacts": [
+            "speech",
+            "mind",
+            "anger",
+            "tongue",
+            "belly"
+          ],
+          "minKeyFacts": 4,
+          "mustInclude": [
+            "speech",
+            "mind",
+            "anger"
+          ],
+          "mustExclude": [
+            "overview",
+            "key ideas",
+            "copyright"
+          ],
+          "requiredItemCount": 6,
+          "goldAnswer": "1. Urge of speech (vāco)\n2. Urge of the mind\n3. Urge of anger\n4. Urge of the tongue\n5. Urge of the belly\n6. Urge of the genitals\nQuote the sloka separately from the numbered list. Keep Sanskrit next to English.",
+          "expectedChunkIds": [
+            "e52e80c4-3cc7-4da6-99b2-cc31083c8ce1",
+            "14a34822-181f-49e8-9cf5-94279cada5c1",
+            "6f1c7434-c8ac-4035-b16d-7bb2cf8133a5",
+            "8bc9ea3b-0d29-4805-9ff5-f9e589c0ddc1"
+          ]
+        },
+        {
+          "id": "ua-sloka-urges",
+          "question": "What does the sloka about the six urges say?",
+          "intent": "sloka",
+          "paraphrases": [
+            "quote the verse on controlling urges",
+            "explain sloka 1 of upadesamrta"
+          ],
+          "groundTruthTerms": [
+            "urge of speech",
+            "vaco"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            18
+          ],
+          "keyFacts": [
+            "speech"
+          ],
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "speech"
+          ],
+          "mustExclude": [
+            "copyright"
+          ],
+          "expectedChunkIds": [
+            "e52e80c4-3cc7-4da6-99b2-cc31083c8ce1",
+            "14a34822-181f-49e8-9cf5-94279cada5c1",
+            "6f1c7434-c8ac-4035-b16d-7bb2cf8133a5",
+            "8bc9ea3b-0d29-4805-9ff5-f9e589c0ddc1"
+          ]
+        },
+        {
+          "id": "ua-alias-kunda",
+          "question": "rādhā kuṇḍa",
+          "intent": "describe",
+          "paraphrases": [
+            "radha-kund",
+            "radhika kunda"
+          ],
+          "groundTruthTerms": [
+            "radha-kunda",
+            "radha-kuṇḍa",
+            "rādhā-kuṇḍa"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            13,
+            15,
+            76,
+            77,
+            81
+          ],
+          "keyFacts": [
+            "pond",
+            "govardhana"
+          ],
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "kund"
+          ],
+          "expectedChunkIds": [
+            "5d0e8963-d74c-4ab7-aca4-b7dfc6a86e1d",
+            "4f66ee20-c058-4279-8d08-13dbe3ac9875",
+            "487503b8-8120-46aa-8b00-4cccdee77bcb",
+            "a3f622c0-dd54-4598-b663-83521fa7aa44",
+            "e42a334b-48cd-40f8-9bf1-865392a7c904",
+            "68c35e4d-7501-4a39-8311-dbe1e0880612",
+            "8c548ea4-a79b-4dba-a2e4-be76f243b957",
+            "6c365d53-7186-410a-9e1a-0e10e9033cf8"
+          ]
+        },
+        {
+          "id": "ua-weak-olympics",
+          "question": "What does this document say about the 2024 Olympics medal tally?",
+          "intent": "describe",
+          "paraphrases": [
+            "who won the 2024 olympics according to this PDF?"
+          ],
+          "expectedPages": [],
+          "keyFacts": [],
+          "requireInsufficient": true
+        },
+        {
+          "id": "ua-followup-third-urge",
+          "question": "explain the third",
+          "intent": "describe",
+          "history": [
+            {
+              "role": "user",
+              "content": "Name 6 urges"
+            },
+            {
+              "role": "assistant",
+              "content": "1. Urge of speech (vāco)\n2. Urge of the mind\n3. Urge of anger\n4. Urge of the tongue\n5. Urge of the belly\n6. Urge of the genitals"
+            }
+          ],
+          "groundTruthTerms": [
+            "urge of speech",
+            "vaco"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            18
+          ],
+          "keyFacts": [
+            "anger"
+          ],
+          "minKeyFacts": 1,
+          "mustInclude": [
+            "anger"
+          ],
+          "mustExclude": [
+            "copyright"
+          ],
+          "expectedChunkIds": [
+            "e52e80c4-3cc7-4da6-99b2-cc31083c8ce1",
+            "14a34822-181f-49e8-9cf5-94279cada5c1",
+            "6f1c7434-c8ac-4035-b16d-7bb2cf8133a5",
+            "8bc9ea3b-0d29-4805-9ff5-f9e589c0ddc1"
+          ]
+        },
+        {
+          "id": "ua-followup-page",
+          "question": "where is that in the book",
+          "intent": "describe",
+          "history": [
+            {
+              "role": "user",
+              "content": "Name 6 urges"
+            },
+            {
+              "role": "assistant",
+              "content": "1. Urge of speech\n2. Urge of the mind\n3. Urge of anger\n4. Urge of the tongue\n5. Urge of the belly\n6. Urge of the genitals"
+            }
+          ],
+          "groundTruthTerms": [
+            "urge of speech",
+            "vaco"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            18
+          ],
+          "keyFacts": [],
+          "minKeyFacts": 0,
+          "expectedChunkIds": [
+            "e52e80c4-3cc7-4da6-99b2-cc31083c8ce1",
+            "14a34822-181f-49e8-9cf5-94279cada5c1",
+            "6f1c7434-c8ac-4035-b16d-7bb2cf8133a5",
+            "8bc9ea3b-0d29-4805-9ff5-f9e589c0ddc1"
+          ]
+        },
+        {
+          "id": "ua-followup-compare",
+          "question": "compare that with Govardhan",
+          "intent": "describe",
+          "history": [
+            {
+              "role": "user",
+              "content": "tell me about radha kund"
+            },
+            {
+              "role": "assistant",
+              "content": "Rādhā-kuṇḍa is the sacred pond near Govardhana. Bathing there is glorified."
+            }
+          ],
+          "groundTruthTerms": [
+            "govardhana",
+            "govardhan"
+          ],
+          "groundTruthMode": "any",
+          "expectedPages": [
+            13,
+            15,
+            76,
+            77
+          ],
+          "keyFacts": [
+            "govardhan"
+          ],
+          "minKeyFacts": 1,
+          "expectedChunkIds": [
+            "3c4f0c68-99a4-4a26-977d-03334af11534",
+            "4f66ee20-c058-4279-8d08-13dbe3ac9875",
+            "487503b8-8120-46aa-8b00-4cccdee77bcb",
+            "a3f622c0-dd54-4598-b663-83521fa7aa44",
+            "e42a334b-48cd-40f8-9bf1-865392a7c904",
+            "68c35e4d-7501-4a39-8311-dbe1e0880612",
+            "8c548ea4-a79b-4dba-a2e4-be76f243b957",
+            "6c365d53-7186-410a-9e1a-0e10e9033cf8"
+          ]
+        },
+        {
+          "id": "ua-offtopic-crypto",
+          "question": "What staking APY does this book recommend for Ethereum?",
           "intent": "describe",
           "expectedPages": [],
           "keyFacts": [],
@@ -198,6 +897,10 @@
           "id": "gen-overview",
           "question": "Give a short overview of what this document is about.",
           "intent": "describe",
+          "paraphrases": [
+            "summarize this PDF",
+            "what is this book about?"
+          ],
           "expectedPages": [],
           "keyFacts": [],
           "minKeyFacts": 0
@@ -206,6 +909,10 @@
           "id": "gen-list",
           "question": "List the main chapters or sections if available.",
           "intent": "list",
+          "paraphrases": [
+            "name the chapters",
+            "what sections does this document have?"
+          ],
           "expectedPages": [],
           "keyFacts": [],
           "minKeyFacts": 0
@@ -214,9 +921,24 @@
           "id": "gen-weak",
           "question": "What does this document say about the 2024 Olympics medal tally?",
           "intent": "describe",
+          "paraphrases": [
+            "who won eurovision 2023 according to this PDF?",
+            "explain the latest iPhone chip in this document",
+            "what is the bitcoin price prediction here?"
+          ],
           "expectedPages": [],
           "keyFacts": [],
           "requireInsufficient": true
+        },
+        {
+          "id": "gen-help",
+          "question": "help",
+          "intent": "conversation",
+          "expectedPages": [],
+          "keyFacts": [
+            "document"
+          ],
+          "minKeyFacts": 1
         }
       ]
     }

@@ -147,9 +147,13 @@ const applyHeaders = (
   }
 };
 
+const isEvalRun = (req: Request) =>
+  req.header('x-eval-run') === '1' || req.body?.source === 'eval';
+
 export const createRateLimiter = (bucket: RateLimitBucket) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (isEvalRun(req)) return next();
       const result = await checkRateLimit(req, bucket);
       applyHeaders(res, result);
       if (!result.allowed) {

@@ -4,8 +4,11 @@ import { getDatabase } from '../utils/database.utils.js';
 import { initUploadSession, saveUploadChunk, completeUploadSession } from '../services/upload.service.js';
 import { pdfQueue } from '../queues/queues.js';
 import { searchDocumentByQuery, streamSearchDocumentByQuery } from '../services/search.service.js';
+import { logTrainingEvent } from '../services/training.service.js';
+import type { ChatTurn } from '../services/query.rewrite.js';
 import { invalidateChapterCache } from '../services/chapter.analysis.js';
 import { getChapterGraphByNumber, invalidateGraphCache } from '../services/chapter.graph.js';
+import { invalidateVocabulary } from '../services/spellcheck.service.js';
 import { getDocumentFilePath } from '../services/storage.service.js';
 import fs from 'fs/promises';
 
@@ -98,6 +101,7 @@ export const deleteDocument = async (req: Request, res: Response) => {
   await db.query('DELETE FROM documents WHERE id=$1', [id]);
   invalidateChapterCache(id);
   invalidateGraphCache(id);
+  invalidateVocabulary(id);
   res.status(204).end();
 };
 
@@ -138,6 +142,7 @@ export const reprocessDocument = async (req: Request, res: Response) => {
   await db.query('UPDATE documents SET status=$2, page_count=NULL WHERE id=$1', [id, 'QUEUED']);
   invalidateChapterCache(id);
   invalidateGraphCache(id);
+  invalidateVocabulary(id);
   await pdfQueue.add('document-processing', { documentId: id });
   res.json({ success: true, message: 'Document queued for full reprocess (extract → chunk → embed).' });
 };
@@ -149,12 +154,29 @@ export const cancelDocument = async (req: Request, res: Response) => {
   res.json({ success: true });
 };
 
+const readSearchOptions = (req: Request) => {
+  const { conversationId, history, persist, source } = req.body || {};
+  const turns: ChatTurn[] = Array.isArray(history)
+    ? history
+        .filter((turn: ChatTurn) => turn && (turn.role === 'user' || turn.role === 'assistant') && typeof turn.content === 'string')
+        .map((turn: ChatTurn) => ({ role: turn.role, content: String(turn.content) }))
+        .slice(-8)
+    : [];
+  const evalRun = req.headers['x-eval-run'] === '1' || source === 'eval';
+  return {
+    conversationId: typeof conversationId === 'string' ? conversationId : undefined,
+    history: turns,
+    persist: persist === false || evalRun ? false : undefined,
+    source: evalRun ? 'eval' as const : 'api' as const
+  };
+};
+
 export const searchDocument = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { query, conversationId } = req.body;
+  const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'MISSING_QUERY' });
 
-  const result = await searchDocumentByQuery(id, query);
+  const result = await searchDocumentByQuery(id, query, readSearchOptions(req));
   res.json(result);
 };
 
@@ -188,7 +210,7 @@ export const searchDocumentStream = async (req: Request, res: Response) => {
   };
 
   try {
-    for await (const event of streamSearchDocumentByQuery(id, query)) {
+    for await (const event of streamSearchDocumentByQuery(id, query, readSearchOptions(req))) {
       if (closed || res.writableEnded) break;
       writeEvent(event);
       if (event.type === 'error' || event.type === 'done') break;
@@ -233,4 +255,26 @@ export const getChapterGraph = async (req: Request, res: Response) => {
       sources: []
     });
   }
+};
+
+export const recordTrainingFeedback = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { eventType, question, answer, previousAnswer, conversationId, pages, chunkIds, intent, meta } = req.body || {};
+  const allowed = new Set(['edit', 'regenerate', 'accepted']);
+  if (!allowed.has(String(eventType || ''))) {
+    return res.status(400).json({ error: 'INVALID_EVENT_TYPE' });
+  }
+  await logTrainingEvent({
+    documentId: id,
+    conversationId: typeof conversationId === 'string' ? conversationId : undefined,
+    eventType,
+    question,
+    answer,
+    previousAnswer,
+    pages: Array.isArray(pages) ? pages.map(Number).filter(Number.isFinite) : [],
+    chunkIds: Array.isArray(chunkIds) ? chunkIds.map(String) : [],
+    intent,
+    meta: meta && typeof meta === 'object' ? meta : {}
+  });
+  res.status(201).json({ ok: true });
 };

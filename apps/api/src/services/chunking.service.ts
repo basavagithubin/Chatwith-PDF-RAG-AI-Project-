@@ -23,7 +23,7 @@ const splitIntoUnits = (text: string) => {
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
-    units.push({ kind: 'body', text: paragraph.join(' ') });
+    units.push({ kind: 'body', text: paragraph.join('\n') });
     paragraph = [];
   };
 
@@ -57,7 +57,7 @@ export const createChunksForPage = (_documentId: string, _pageNumber: number, pa
   let section = units.find((unit) => unit.kind === 'heading')?.text || pageText.split('\n')[0]?.slice(0, 80) || 'Page content';
 
   const pushChunk = (content: string) => {
-    const cleaned = content.replace(/\s+/g, ' ').trim();
+    const cleaned = content.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
     if (!cleaned) return;
     chunks.push({
       chunkIndex: index++,

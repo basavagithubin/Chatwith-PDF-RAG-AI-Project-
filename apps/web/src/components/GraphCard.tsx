@@ -15,13 +15,16 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { ChapterGraphData, GraphNodeData, GraphNodeType } from '../types/graph';
+import { useTheme, type Theme } from '../context/ThemeContext';
 
 type GraphCardProps = {
   graph: ChapterGraphData;
   onOpenPage?: (page: number) => void;
 };
 
-const TYPE_COLORS: Record<GraphNodeType, { bg: string; border: string; text: string }> = {
+type NodePalette = { bg: string; border: string; text: string };
+
+const TYPE_COLORS_LIGHT: Record<GraphNodeType, NodePalette> = {
   ROOT: { bg: '#0d9488', border: '#0f766e', text: '#ffffff' },
   CONCEPT: { bg: '#f0fdfa', border: '#5eead4', text: '#134e4a' },
   SUBCONCEPT: { bg: '#f4f7f8', border: '#a7bcc6', text: '#3c4851' },
@@ -36,9 +39,27 @@ const TYPE_COLORS: Record<GraphNodeType, { bg: string; border: string; text: str
   SECTION: { bg: '#f4f7f8', border: '#7a98a6', text: '#1a2228' }
 };
 
+const TYPE_COLORS_DARK: Record<GraphNodeType, NodePalette> = {
+  ROOT: { bg: '#0d9488', border: '#2dd4bf', text: '#ffffff' },
+  CONCEPT: { bg: '#0f2826', border: '#2dd4bf', text: '#ccfbf1' },
+  SUBCONCEPT: { bg: '#1a2228', border: '#5e7c8b', text: '#e4ecef' },
+  DEFINITION: { bg: '#0c2a32', border: '#22d3ee', text: '#a5f3fc' },
+  PRINCIPLE: { bg: '#10271a', border: '#4ade80', text: '#bbf7d0' },
+  EXAMPLE: { bg: '#2a1a0c', border: '#fb923c', text: '#fed7aa' },
+  EVENT: { bg: '#1a2228', border: '#7a98a6', text: '#e4ecef' },
+  PERSON: { bg: '#1a2228', border: '#5e7c8b', text: '#e4ecef' },
+  CAUSE: { bg: '#2a1212', border: '#f87171', text: '#fecaca' },
+  EFFECT: { bg: '#2a220c', border: '#fbbf24', text: '#fde68a' },
+  CONCLUSION: { bg: '#0f2826', border: '#14b8a6', text: '#99f6e4' },
+  SECTION: { bg: '#1a2228', border: '#7a98a6', text: '#e4ecef' }
+};
+
+const paletteFor = (theme: Theme) => (theme === 'dark' ? TYPE_COLORS_DARK : TYPE_COLORS_LIGHT);
+
 function ConceptNode({ data, selected }: NodeProps) {
+  const { theme } = useTheme();
   const node = data as GraphNodeData & { collapsed?: boolean; hasChildren?: boolean; onToggle?: () => void };
-  const colors = TYPE_COLORS[node.type] || TYPE_COLORS.CONCEPT;
+  const colors = paletteFor(theme)[node.type] || paletteFor(theme).CONCEPT;
 
   return (
     <div
@@ -69,7 +90,14 @@ function ConceptNode({ data, selected }: NodeProps) {
 
 const nodeTypes = { concept: ConceptNode };
 
-const layoutNodes = (graph: ChapterGraphData, collapsed: Set<string>): { nodes: Node[]; edges: Edge[]; hidden: Set<string> } => {
+const layoutNodes = (
+  graph: ChapterGraphData,
+  collapsed: Set<string>,
+  theme: Theme
+): { nodes: Node[]; edges: Edge[]; hidden: Set<string> } => {
+  const edgeStroke = theme === 'dark' ? '#7a98a6' : '#94a3b8';
+  const edgeLabel = theme === 'dark' ? '#a7bcc6' : '#64748b';
+  const edgeLabelBg = theme === 'dark' ? '#1a2228' : '#ffffff';
   const childrenMap = new Map<string, string[]>();
   for (const edge of graph.edges) {
     const list = childrenMap.get(edge.source) || [];
@@ -144,9 +172,9 @@ const layoutNodes = (graph: ChapterGraphData, collapsed: Set<string>): { nodes: 
       type: 'smoothstep',
       animated: edge.relationship === 'leads_to' || edge.relationship === 'causes',
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-      style: { stroke: '#94a3b8', strokeWidth: 1.5 },
-      labelStyle: { fontSize: 9, fill: '#64748b' },
-      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 },
+      style: { stroke: edgeStroke, strokeWidth: 1.5 },
+      labelStyle: { fontSize: 9, fill: edgeLabel },
+      labelBgStyle: { fill: edgeLabelBg, fillOpacity: 0.92 },
       labelBgPadding: [4, 2] as [number, number]
     }));
 
@@ -154,12 +182,14 @@ const layoutNodes = (graph: ChapterGraphData, collapsed: Set<string>): { nodes: 
 };
 
 function GraphCanvas({ graph, onOpenPage }: GraphCardProps) {
+  const { theme } = useTheme();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<GraphNodeData | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const { fitView } = useReactFlow();
+  const typeColors = paletteFor(theme);
 
-  const { nodes, edges } = useMemo(() => layoutNodes(graph, collapsed), [graph, collapsed]);
+  const { nodes, edges } = useMemo(() => layoutNodes(graph, collapsed, theme), [graph, collapsed, theme]);
 
   const toggleCollapse = useCallback((id: string) => {
     setCollapsed((current) => {
@@ -191,12 +221,12 @@ function GraphCanvas({ graph, onOpenPage }: GraphCardProps) {
   const modeLabel = graph.type.replace(/_/g, ' ');
 
   const shellClass = fullscreen
-    ? 'fixed inset-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-lift'
-    : 'overflow-hidden rounded-xl border border-brand-100 bg-white';
+    ? 'fixed inset-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-lift'
+    : 'overflow-hidden rounded-xl border border-brand-100 bg-surface';
 
   return (
     <div className={shellClass}>
-      {fullscreen && <div className="fixed inset-0 z-40 bg-ink-950/40" onClick={() => setFullscreen(false)} />}
+      {fullscreen && <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setFullscreen(false)} />}
       <div className={`relative ${fullscreen ? 'z-50 flex h-full flex-col' : ''}`}>
         <div className="flex items-start justify-between gap-2 border-b border-ink-100 px-3 py-2.5">
           <div>
@@ -245,11 +275,11 @@ function GraphCanvas({ graph, onOpenPage }: GraphCardProps) {
             onNodeClick={(_, node) => setSelected(node.data as unknown as GraphNodeData)}
             onPaneClick={() => setSelected(null)}
           >
-            <Background gap={16} color="#e4ecef" />
+            <Background gap={16} color={theme === 'dark' ? '#2a343c' : '#e4ecef'} />
             <Controls showInteractive={false} />
             <MiniMap
-              nodeColor={(node) => TYPE_COLORS[(node.data as GraphNodeData).type]?.border || '#7a98a6'}
-              maskColor="rgba(26, 34, 40, 0.08)"
+              nodeColor={(node) => typeColors[(node.data as GraphNodeData).type]?.border || '#7a98a6'}
+              maskColor={theme === 'dark' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(26, 34, 40, 0.08)'}
             />
           </ReactFlow>
         </div>
@@ -268,7 +298,7 @@ function GraphCanvas({ graph, onOpenPage }: GraphCardProps) {
                       key={page}
                       type="button"
                       onClick={() => onOpenPage?.(page)}
-                      className="rounded-lg border border-brand-200 bg-white px-2.5 py-1 text-[11px] font-medium text-brand-800 hover:bg-brand-50"
+                      className="rounded-lg border border-brand-200 bg-surface px-2.5 py-1 text-[11px] font-medium text-brand-800 hover:bg-brand-50"
                     >
                       Open Page {page}
                     </button>

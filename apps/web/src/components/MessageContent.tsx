@@ -48,7 +48,7 @@ export default function MessageContent({ content, sources, graphSlot, onOpenPage
             return (
               <div
                 key={index}
-                className="flex gap-3 rounded-xl border border-ink-100 bg-white px-3 py-2.5 shadow-sm"
+                className="flex gap-3 rounded-xl border border-ink-100 bg-surface px-3 py-2.5 shadow-sm"
               >
                 <span className="mt-0.5 shrink-0 rounded-md bg-brand-50 px-2 py-0.5 font-display text-[11px] font-semibold text-brand-800">
                   {label.replace(/\.$/, '')}
@@ -142,7 +142,7 @@ export default function MessageContent({ content, sources, graphSlot, onOpenPage
       blocks.push(
         <blockquote
           key={`q-${key++}`}
-          className="my-2 rounded-lg border-l-4 border-brand-400 bg-white px-3 py-2 text-sm leading-relaxed text-ink-600"
+          className="my-2 rounded-lg border-l-4 border-brand-400 bg-surface px-3 py-2 text-sm leading-relaxed text-ink-600"
         >
           {renderInline(line.slice(2))}
         </blockquote>
@@ -184,7 +184,7 @@ export default function MessageContent({ content, sources, graphSlot, onOpenPage
                 key={page}
                 type="button"
                 onClick={() => onOpenPage?.(page)}
-                className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50"
+                className="rounded-lg bg-surface px-2.5 py-1.5 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50"
               >
                 Page {page}
               </button>

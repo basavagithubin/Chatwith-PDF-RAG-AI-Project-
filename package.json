@@ -16,6 +16,9 @@
     "eval:accuracy": "npm run eval:accuracy --workspace=pdf-chat-ai-api",
     "eval:baseline": "npm run eval:baseline --workspace=pdf-chat-ai-api",
     "eval:ground": "npm run eval:ground --workspace=pdf-chat-ai-api",
+    "eval:ground-chunks": "npm run eval:ground-chunks --workspace=pdf-chat-ai-api",
+    "eval:compare": "npm run eval:compare --workspace=pdf-chat-ai-api",
+    "eval:finetune-export": "npm run eval:finetune-export --workspace=pdf-chat-ai-api",
     "reprocess:all": "npm run reprocess:all --workspace=pdf-chat-ai-api"
   },
   "devDependencies": {

@@ -92,6 +92,22 @@ export const initDatabase = async () => {
       chunk_id uuid,
       source_text text
     );
+    CREATE TABLE IF NOT EXISTS training_events (
+      id uuid PRIMARY KEY,
+      document_id uuid,
+      conversation_id uuid,
+      event_type text NOT NULL,
+      question text,
+      rewritten_query text,
+      answer text,
+      previous_answer text,
+      pages int[],
+      chunk_ids text[],
+      intent text,
+      provider text,
+      meta jsonb,
+      created_at timestamptz DEFAULT now()
+    );
   `;
 
   for (let attempt = 1; attempt <= 10; attempt += 1) {
@@ -109,6 +125,11 @@ export const initDatabase = async () => {
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS document_embeddings_chunk_key
     ON document_embeddings (document_chunk_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS training_events_document_idx
+    ON training_events (document_id, created_at DESC)
   `);
 
   try {

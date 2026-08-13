@@ -3,14 +3,19 @@ import { getDatabase } from '../utils/database.utils.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export const createConversation = async (req: Request, res: Response) => {
-  const { documentIds } = req.body;
-  if (!Array.isArray(documentIds) || documentIds.length === 0) {
+  const { documentIds, documentId } = req.body;
+  const ids = Array.isArray(documentIds)
+    ? documentIds
+    : documentId
+      ? [documentId]
+      : [];
+  if (!ids.length) {
     return res.status(400).json({ error: 'MISSING_DOCUMENT_IDS' });
   }
   const conversationId = uuidv4();
   const db = getDatabase();
-  await db.query('INSERT INTO conversations (id, document_ids) VALUES ($1, $2)', [conversationId, documentIds]);
-  res.status(201).json({ id: conversationId });
+  await db.query('INSERT INTO conversations (id, document_ids) VALUES ($1, $2)', [conversationId, ids]);
+  res.status(201).json({ id: conversationId, documentIds: ids });
 };
 
 export const listConversations = async (req: Request, res: Response) => {

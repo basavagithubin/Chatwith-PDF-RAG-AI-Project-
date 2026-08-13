@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { detectExactIntent, extractBestList, formatListAnswer, formatSlokaAnswer } from '../../services/exact.extract.js';
 
 const EMBEDDING_SIZE = 1536;
 
@@ -238,7 +239,7 @@ const STOPWORDS = new Set([
   'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'with', 'from', 'by', 'is', 'are',
   'was', 'were', 'be', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'how', 'why',
   'does', 'do', 'did', 'say', 'says', 'about', 'give', 'tell', 'please', 'can', 'you', 'me',
-  'pdf', 'document', 'text', 'chapter', 'page', 'pages'
+  'pdf', 'document', 'text', 'chapter', 'page', 'pages', 'name', 'list'
 ]);
 
 /** True when the question's distinctive terms barely appear in retrieved context. */
@@ -373,6 +374,17 @@ export class MockLLMProvider {
     }
 
     const lowerQuestion = question.toLowerCase();
+    const exactIntent = detectExactIntent(question);
+    if (exactIntent) {
+      const joined = chunks.join('\n');
+      const extracted = extractBestList(joined, exactIntent);
+      if (extracted && extracted.items.length >= 2) {
+        return exactIntent.type === 'sloka'
+          ? formatSlokaAnswer(extracted, exactIntent)
+          : formatListAnswer(extracted, exactIntent);
+      }
+    }
+
     const wantsChapterList =
       (/chapter|section|contents|index|heading|title|topic/.test(lowerQuestion) ||
         /all chapter|chapter name|list.*chapter|give.*chapter/.test(lowerQuestion)) &&

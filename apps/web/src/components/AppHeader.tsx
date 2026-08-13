@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MenuIcon, PlusIcon } from './Icons';
+import AccountMenu from './AccountMenu';
+import ThemeToggle from './ThemeToggle';
 
 type AppHeaderProps = {
   documentName?: string;
@@ -9,7 +11,7 @@ type AppHeaderProps = {
 
 export default function AppHeader({ documentName, onNewClick, onMenuClick }: AppHeaderProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-ink-200/80 bg-white/90 px-4 backdrop-blur-md">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-ink-200/80 bg-surface px-4">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
@@ -33,11 +35,13 @@ export default function AppHeader({ documentName, onNewClick, onMenuClick }: App
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <button type="button" onClick={onNewClick} className="btn-primary">
           <PlusIcon className="h-4 w-4" />
           <span className="hidden sm:inline">Upload PDF</span>
           <span className="sm:hidden">Upload</span>
         </button>
+        <AccountMenu />
       </div>
     </header>
   );

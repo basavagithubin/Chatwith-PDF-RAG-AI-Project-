@@ -1,39 +1,54 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         ink: {
-          50: '#f4f7f8',
-          100: '#e4ecef',
-          200: '#cbd8de',
-          300: '#a7bcc6',
-          400: '#7a98a6',
-          500: '#5e7c8b',
-          600: '#516675',
-          700: '#455560',
-          800: '#3c4851',
-          900: '#353e45',
-          950: '#1a2228'
+          50: 'rgb(var(--ink-50) / <alpha-value>)',
+          100: 'rgb(var(--ink-100) / <alpha-value>)',
+          200: 'rgb(var(--ink-200) / <alpha-value>)',
+          300: 'rgb(var(--ink-300) / <alpha-value>)',
+          400: 'rgb(var(--ink-400) / <alpha-value>)',
+          500: 'rgb(var(--ink-500) / <alpha-value>)',
+          600: 'rgb(var(--ink-600) / <alpha-value>)',
+          700: 'rgb(var(--ink-700) / <alpha-value>)',
+          800: 'rgb(var(--ink-800) / <alpha-value>)',
+          900: 'rgb(var(--ink-900) / <alpha-value>)',
+          950: 'rgb(var(--ink-950) / <alpha-value>)'
         },
         brand: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a'
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          400: 'rgb(var(--brand-400) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
+          900: 'rgb(var(--brand-900) / <alpha-value>)'
+        },
+        danger: {
+          50: 'rgb(var(--danger-50) / <alpha-value>)',
+          100: 'rgb(var(--danger-100) / <alpha-value>)',
+          200: 'rgb(var(--danger-200) / <alpha-value>)',
+          700: 'rgb(var(--danger-700) / <alpha-value>)',
+          800: 'rgb(var(--danger-800) / <alpha-value>)'
+        },
+        warn: {
+          50: 'rgb(var(--warn-50) / <alpha-value>)',
+          100: 'rgb(var(--warn-100) / <alpha-value>)',
+          200: 'rgb(var(--warn-200) / <alpha-value>)',
+          700: 'rgb(var(--warn-700) / <alpha-value>)',
+          800: 'rgb(var(--warn-800) / <alpha-value>)'
         },
         surface: {
-          DEFAULT: '#ffffff',
-          muted: '#f4f7f8',
-          sidebar: '#f7fafb',
-          canvas: '#e8eef1'
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          muted: 'rgb(var(--surface-muted) / <alpha-value>)',
+          sidebar: 'rgb(var(--surface-sidebar) / <alpha-value>)',
+          canvas: 'rgb(var(--surface-canvas) / <alpha-value>)'
         }
       },
       fontFamily: {
@@ -41,9 +56,9 @@ export default {
         sans: ['"Source Sans 3"', 'ui-sans-serif', 'system-ui', 'sans-serif']
       },
       boxShadow: {
-        toolbar: '0 8px 30px rgba(26, 34, 40, 0.10)',
-        card: '0 1px 2px rgba(26, 34, 40, 0.05), 0 4px 16px rgba(26, 34, 40, 0.04)',
-        lift: '0 12px 40px rgba(26, 34, 40, 0.12)'
+        toolbar: 'var(--shadow-toolbar)',
+        card: 'var(--shadow-card)',
+        lift: 'var(--shadow-lift)'
       },
       keyframes: {
         'fade-up': {

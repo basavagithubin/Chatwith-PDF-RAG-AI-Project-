@@ -9,6 +9,9 @@
     "eval:accuracy": "node scripts/eval-accuracy.mjs",
     "eval:baseline": "node scripts/eval-accuracy.mjs --save-baseline",
     "eval:ground": "node scripts/ground-gold-questions.mjs",
+    "eval:ground-chunks": "node scripts/ground-gold-chunks.mjs",
+    "eval:compare": "node scripts/eval-compare-providers.mjs",
+    "eval:finetune-export": "node scripts/export-finetune-jsonl.mjs",
     "reprocess:all": "node scripts/reprocess-all.mjs",
     "inspect:state": "node scripts/inspect-state.mjs"
   },

@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { BotAvatar, CopyIcon, SendIcon } from './Icons';
+import { BotAvatar, CheckIcon, CopyIcon, PencilIcon, RefreshIcon, SendIcon, TrashIcon } from './Icons';
 import MessageContent from './MessageContent';
 import GraphCard from './GraphCard';
+import SpellingNotice, { readSpelling } from './SpellingNotice';
 import type { ChapterGraphData } from '../types/graph';
 
 export type ChatMessage = {
@@ -24,6 +25,11 @@ type ChatPanelProps = {
   loadingHint?: string;
   error?: string;
   onSend: (query: string) => void;
+  onEdit?: (messageId: string, query: string) => void;
+  onDelete?: (messageId: string) => void;
+  onRegenerate?: (assistantId: string) => void;
+  onAccept?: (assistantId: string) => void;
+  onClear?: () => void;
   onOpenPage?: (page: number) => void;
   className?: string;
 };
@@ -43,13 +49,21 @@ export default function ChatPanel({
   loadingHint,
   error,
   onSend,
+  onEdit,
+  onDelete,
+  onRegenerate,
+  onAccept,
+  onClear,
   onOpenPage,
   className = ''
 }: ChatPanelProps) {
   const [query, setQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const suggestions = defaultSuggestions();
   const typingVisible = showTyping ?? isLoading;
+  const canMutate = !isLoading && documentReady;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,6 +73,7 @@ export default function ChatPanel({
     if (!text.trim() || isLoading || !documentReady) return;
     onSend(text.trim());
     setQuery('');
+    setEditingId(null);
   };
 
   const handleSubmit = (event: FormEvent) => {
@@ -66,15 +81,42 @@ export default function ChatPanel({
     submit(query);
   };
 
+  const startEdit = (message: ChatMessage) => {
+    if (!canMutate) return;
+    setEditingId(message.id);
+    setDraft(message.content);
+  };
+
+  const saveEdit = (messageId: string) => {
+    const text = draft.trim();
+    if (!text || !onEdit) return;
+    onEdit(messageId, text);
+    setEditingId(null);
+    setDraft('');
+  };
+
+  const actionBtn =
+    'rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 disabled:cursor-not-allowed disabled:opacity-40';
+
   return (
     <section
-      className={`flex w-full flex-col border-l border-ink-200/80 bg-white md:w-[440px] md:shrink-0 xl:w-[480px] ${className}`}
+      className={`flex w-full flex-col border-l border-ink-200/80 bg-surface md:w-[440px] md:shrink-0 xl:w-[480px] ${className}`}
     >
       <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
         <div>
           <p className="font-display text-sm font-semibold text-ink-950">Chat</p>
           <p className="text-xs text-ink-400">{documentName?.replace(/\.pdf$/i, '') ?? 'Document Q&A'}</p>
         </div>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={isLoading}
+            className="rounded-lg px-2 py-1 text-xs font-medium text-ink-500 hover:bg-ink-100 hover:text-ink-800 disabled:opacity-40"
+          >
+            Clear chat
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-6">
@@ -99,11 +141,84 @@ export default function ChatPanel({
               {message.role === 'assistant' && <BotAvatar />}
               <div className={`min-w-0 flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
                 {message.role === 'user' ? (
-                  <div className="inline-block max-w-full rounded-2xl rounded-tr-md bg-ink-950 px-4 py-3 text-sm leading-relaxed text-white">
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  <div className="group inline-block max-w-full text-left">
+                    {editingId === message.id ? (
+                      <div className="w-[min(100%,22rem)] rounded-2xl rounded-tr-md border border-brand-300 bg-surface p-2 shadow-card">
+                        <textarea
+                          value={draft}
+                          onChange={(event) => setDraft(event.target.value)}
+                          rows={3}
+                          className="w-full resize-none bg-transparent text-sm text-ink-950 focus:outline-none"
+                          autoFocus
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' && !event.shiftKey) {
+                              event.preventDefault();
+                              saveEdit(message.id);
+                            }
+                            if (event.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                        <div className="mt-1 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="rounded-lg px-2 py-1 text-xs text-ink-500 hover:bg-ink-100"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveEdit(message.id)}
+                            disabled={!draft.trim()}
+                            className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-40"
+                          >
+                            Save & ask
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="inline-block max-w-full rounded-2xl rounded-tr-md bg-brand-700 px-4 py-3 text-sm leading-relaxed text-white">
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                        <div className="mt-1 flex justify-end gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                          <button
+                            type="button"
+                            className={actionBtn}
+                            aria-label="Copy question"
+                            disabled={!canMutate && isLoading}
+                            onClick={() => void navigator.clipboard.writeText(message.content)}
+                          >
+                            <CopyIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className={actionBtn}
+                            aria-label="Edit question"
+                            disabled={!canMutate}
+                            onClick={() => startEdit(message)}
+                          >
+                            <PencilIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className={actionBtn}
+                            aria-label="Delete question"
+                            disabled={!canMutate}
+                            onClick={() => onDelete?.(message.id)}
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  <div className="w-full rounded-2xl rounded-tl-md border border-ink-100 bg-white px-4 py-3.5 shadow-card">
+                  <div className="group w-full rounded-2xl rounded-tl-md border border-ink-100 bg-surface px-4 py-3.5 shadow-card">
+                    {(() => {
+                      const spelling = readSpelling(message.meta);
+                      return spelling ? <SpellingNotice spelling={spelling} /> : null;
+                    })()}
                     <MessageContent
                       content={message.content}
                       sources={message.sources}
@@ -122,14 +237,14 @@ export default function ChatPanel({
                           <button
                             type="button"
                             onClick={() => submit('Explain the second concept')}
-                            className="rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
+                            className="rounded-lg border border-brand-200 bg-surface px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
                           >
                             Explain 2nd concept
                           </button>
                           <button
                             type="button"
                             onClick={() => submit('Create a mind map for Chapter 1')}
-                            className="rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
+                            className="rounded-lg border border-brand-200 bg-surface px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
                           >
                             Mind map
                           </button>
@@ -138,7 +253,7 @@ export default function ChatPanel({
                         <button
                           type="button"
                           onClick={() => submit('Create a graph for Chapter 1')}
-                          className="rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
+                          className="rounded-lg border border-brand-200 bg-surface px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-50"
                         >
                           Concept graph
                         </button>
@@ -149,11 +264,38 @@ export default function ChatPanel({
                     <div className="mt-2 flex items-center gap-1 text-ink-300">
                       <button
                         type="button"
-                        className="rounded-lg p-1.5 hover:bg-white hover:text-ink-600"
-                        aria-label="Copy"
+                        className={actionBtn}
+                        aria-label="Copy answer"
                         onClick={() => void navigator.clipboard.writeText(message.content)}
                       >
                         <CopyIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={actionBtn}
+                        aria-label="Keep this answer for training"
+                        disabled={!canMutate}
+                        onClick={() => onAccept?.(message.id)}
+                      >
+                        <CheckIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={actionBtn}
+                        aria-label="Regenerate answer"
+                        disabled={!canMutate}
+                        onClick={() => onRegenerate?.(message.id)}
+                      >
+                        <RefreshIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={actionBtn}
+                        aria-label="Delete answer"
+                        disabled={!canMutate}
+                        onClick={() => onDelete?.(message.id)}
+                      >
+                        <TrashIcon />
                       </button>
                     </div>
                     )}
@@ -190,7 +332,7 @@ export default function ChatPanel({
               key={suggestion}
               type="button"
               onClick={() => submit(suggestion)}
-              className="block w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-left text-sm text-ink-700 transition hover:border-brand-300 hover:bg-brand-50/50"
+              className="block w-full rounded-xl border border-ink-200 bg-surface px-4 py-3 text-left text-sm text-ink-700 transition hover:border-brand-300 hover:bg-brand-50/50"
             >
               {suggestion}
             </button>
@@ -199,7 +341,7 @@ export default function ChatPanel({
       )}
 
       {error && (
-        <p role="alert" className="mx-4 mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="panel-danger mx-4 mb-2 rounded-xl px-3 py-2 text-sm">
           {error}
         </p>
       )}

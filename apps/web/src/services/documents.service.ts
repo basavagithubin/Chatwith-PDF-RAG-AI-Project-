@@ -73,11 +73,45 @@ export const createDocument = async ({ name, size, checksum, chunkCount }: { nam
   });
 };
 
-export const searchDocument = async (id: string, query: string) => {
+export type ChatTurn = { role: 'user' | 'assistant'; content: string };
+
+export type SearchRequestOptions = {
+  conversationId?: string;
+  history?: ChatTurn[];
+};
+
+export const searchDocument = async (id: string, query: string, options?: SearchRequestOptions) => {
   return request(`${API_BASE}/documents/${id}/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query, ...options })
+  });
+};
+
+export const createConversation = async (documentId: string) => {
+  return request(`${API_BASE}/conversations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documentId })
+  });
+};
+
+export const recordTrainingFeedback = async (
+  documentId: string,
+  payload: {
+    eventType: 'edit' | 'regenerate' | 'accepted';
+    question?: string;
+    answer?: string;
+    previousAnswer?: string;
+    conversationId?: string;
+    pages?: number[];
+    intent?: string;
+  }
+) => {
+  return request(`${API_BASE}/documents/${documentId}/training-feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   });
 };
 
@@ -104,7 +138,8 @@ export const searchDocumentStream = async (
   id: string,
   query: string,
   handlers: SearchStreamHandlers,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: SearchRequestOptions
 ) => {
   const res = await fetch(`${API_BASE}/documents/${id}/search/stream`, {
     method: 'POST',
@@ -112,7 +147,7 @@ export const searchDocumentStream = async (
       'Content-Type': 'application/json',
       Accept: 'text/event-stream'
     }),
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, ...options }),
     signal
   });
 

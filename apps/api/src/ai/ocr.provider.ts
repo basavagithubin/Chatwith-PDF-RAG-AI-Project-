@@ -114,32 +114,103 @@ const tryTesseractOcr = async (filePath: string, pageNumber: number): Promise<st
 
 export const createOcrProvider = (): OCRProvider => new BuiltinOCRProvider();
 
-/** Reconstruct readable page text from pdf.js text items using positions. */
-export const reconstructPageText = (items: Array<{ str?: string; transform?: number[]; width?: number }>) => {
-  if (!items?.length) return '';
+type TextRun = { x: number; y: number; width: number; text: string };
 
-  type LineItem = { x: number; text: string };
-  const lines = new Map<number, LineItem[]>();
-
+const collectRuns = (items: Array<{ str?: string; transform?: number[]; width?: number }>): TextRun[] => {
+  const runs: TextRun[] = [];
   for (const item of items) {
     const text = (item.str || '').replace(/\s+/g, ' ');
     if (!text.trim()) continue;
     const transform = item.transform || [1, 0, 0, 1, 0, 0];
-    const x = Number(transform[4] || 0);
-    const y = Math.round(Number(transform[5] || 0));
-    const bucket = Math.round(y / 3) * 3;
-    const list = lines.get(bucket) || [];
-    list.push({ x, text });
-    lines.set(bucket, list);
+    runs.push({
+      x: Number(transform[4] || 0),
+      y: Math.round(Number(transform[5] || 0)),
+      width: Number(item.width || 0),
+      text
+    });
+  }
+  return runs;
+};
+
+/** Find a vertical gutter when X positions form two clusters (two-column pages). */
+const detectGutter = (runs: TextRun[]) => {
+  if (runs.length < 12) return null;
+  const maxX = Math.max(...runs.map((run) => run.x + run.width));
+  const minX = Math.min(...runs.map((run) => run.x));
+  const width = maxX - minX;
+  if (width < 80) return null;
+
+  const bins = 24;
+  const counts = new Array<number>(bins).fill(0);
+  for (const run of runs) {
+    const idx = Math.min(bins - 1, Math.floor(((run.x - minX) / width) * bins));
+    counts[idx] += 1;
   }
 
-  const orderedYs = Array.from(lines.keys()).sort((a, b) => b - a);
-  const output: string[] = [];
-  for (const y of orderedYs) {
-    const row = (lines.get(y) || []).sort((a, b) => a.x - b.x);
-    const line = row.map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim();
-    if (line) output.push(line);
+  const midStart = Math.floor(bins * 0.35);
+  const midEnd = Math.ceil(bins * 0.7);
+  let emptyIdx = -1;
+  let emptyCount = Number.POSITIVE_INFINITY;
+  for (let i = midStart; i < midEnd; i += 1) {
+    if (counts[i] < emptyCount) {
+      emptyCount = counts[i];
+      emptyIdx = i;
+    }
   }
+  const leftCount = counts.slice(0, emptyIdx).reduce((sum, value) => sum + value, 0);
+  const rightCount = counts.slice(emptyIdx + 1).reduce((sum, value) => sum + value, 0);
+  if (emptyIdx < 0 || emptyCount > runs.length * 0.06) return null;
+  if (leftCount < runs.length * 0.18 || rightCount < runs.length * 0.18) return null;
+  return minX + ((emptyIdx + 0.5) / bins) * width;
+};
+
+const joinRuns = (runs: TextRun[]) =>
+  [...runs]
+    .sort((a, b) => a.x - b.x)
+    .map((run) => run.text)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const bucketLines = (runs: TextRun[]) => {
+  const lines = new Map<number, TextRun[]>();
+  for (const run of runs) {
+    const bucket = Math.round(run.y / 3) * 3;
+    const list = lines.get(bucket) || [];
+    list.push(run);
+    lines.set(bucket, list);
+  }
+  return [...lines.entries()].sort((a, b) => b[0] - a[0]);
+};
+
+/** Reconstruct readable page text from pdf.js text items using positions. */
+export const reconstructPageText = (items: Array<{ str?: string; transform?: number[]; width?: number }>) => {
+  if (!items?.length) return '';
+  const runs = collectRuns(items);
+  if (!runs.length) return '';
+
+  const gutter = detectGutter(runs);
+  const rows = bucketLines(runs);
+  const output: string[] = [];
+
+  for (const [, row] of rows) {
+    if (!gutter) {
+      const line = joinRuns(row);
+      if (line) output.push(line);
+      continue;
+    }
+    const left = row.filter((run) => run.x < gutter);
+    const right = row.filter((run) => run.x >= gutter);
+    const leftText = joinRuns(left);
+    const rightText = joinRuns(right);
+    if (leftText && rightText) {
+      const numbered = /^\d{1,2}[a-z]?[.)]\s+\S/i.test(rightText);
+      output.push(numbered ? `${leftText} ${rightText}` : `${leftText}\n${rightText}`);
+    } else if (leftText || rightText) {
+      output.push(leftText || rightText);
+    }
+  }
+
   return output.join('\n').trim();
 };
 

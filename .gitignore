@@ -1,5 +1,9 @@
 .env
 .env.local
+.env*.local
+
+# Contains a full-access InsForge admin API key
+.insforge/
 .data/
 storage/
 node_modules/
@@ -7,9 +11,25 @@ apps/api/dist/
 apps/web/dist/
 apps/api/evals/reports/*
 !apps/api/evals/reports/baseline.json
+apps/api/evals/finetune/*.jsonl
 *.log
 .DS_Store
 Thumbs.db
 
 # Tesseract language data downloaded on first OCR run
 *.traineddata
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

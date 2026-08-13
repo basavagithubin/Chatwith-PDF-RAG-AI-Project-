@@ -6,6 +6,13 @@ import { getConversationalReply } from '../utils/chat.utils.js';
 import { tryChapterAnalysis } from './chapter.analysis.js';
 import { tryChapterList } from './chapter.boundary.js';
 import { tryGraphFollowUp, tryGraphGeneration } from './chapter.graph.js';
+import { tryExactDocumentAnswer } from './exact.answer.js';
+import { tryDeepDocumentResearch } from './deep.research.js';
+import { correctQuerySpelling, SpellCheckResult } from './spellcheck.service.js';
+import { expandDomainTerms } from './domain.synonyms.js';
+import { rewriteQueryWithHistory, type ChatTurn } from './query.rewrite.js';
+import { appendConversationTurn, ensureConversation, loadConversationHistory } from './conversation.service.js';
+import { logTrainingEvent } from './training.service.js';
 import { toSql } from 'pgvector/pg';
 
 type DocumentChunkRow = {
@@ -30,7 +37,7 @@ const STOP_WORDS = new Set([
   'give', 'me', 'detail', 'details', 'about', 'it', 'the', 'and', 'for', 'with', 'from',
   'this', 'that', 'everything', 'point', 'points', 'explain', 'please', 'tell', 'all',
   'in', 'of', 'to', 'a', 'an', 'on', 'by', 'is', 'are', 'was', 'were', 'describe', 'description',
-  'what', 'can', 'you', 'could', 'how', 'why'
+  'what', 'can', 'you', 'could', 'how', 'why', 'name', 'list', 'enumerate', 'mention'
 ]);
 
 /** Generic synonym expansion (document-agnostic). */
@@ -40,7 +47,8 @@ const GENERIC_SYNONYMS: Array<{ match: RegExp; terms: string[] }> = [
   { match: /\b(impurity|pollution|pure|purification)\b/i, terms: ['impurity', 'pure', 'purification', 'relatives'] },
   { match: /\b(rite|ceremony|ritual|sacrament)\b/i, terms: ['rite', 'ceremony', 'ritual', 'offering'] },
   { match: /\b(path|way|journey)\b/i, terms: ['path', 'way', 'journey'] },
-  { match: /\b(sin|sinful|wicked|virtue)\b/i, terms: ['sin', 'sinful', 'virtue', 'conduct'] }
+  { match: /\b(sin|sinful|wicked|virtue)\b/i, terms: ['sin', 'sinful', 'virtue', 'conduct'] },
+  { match: /\b(urge|urges|impulse|impulses)\b/i, terms: ['urge', 'urges', 'impulse', 'vegam', 'vega'] }
 ];
 
 const extractChapterHints = (query: string) => {
@@ -87,8 +95,9 @@ const extractKeywords = (query: string) => {
   for (const rule of GENERIC_SYNONYMS) {
     if (rule.match.test(query)) extras.push(...rule.terms);
   }
+  extras.push(...expandDomainTerms(query));
 
-  return Array.from(new Set([...base, ...extras])).slice(0, 14);
+  return Array.from(new Set([...base, ...extras])).slice(0, 16);
 };
 
 const scoreContent = (content: string, chapterHints: string[], keywords: string[]) => {
@@ -131,8 +140,12 @@ const rerankCandidates = (candidates: Candidate[], query: string, keywords: stri
         boost += Math.min(matches, 4) * 1.5;
       }
       if (/contents\s+introduction/i.test(candidate.content)) boost -= 4;
+      if (/at a glance/i.test(candidate.content) && candidate.content.length < 700) boost -= 3;
       if (candidate.content.length < 80) boost -= 2;
       if (candidate.content.length > 200 && candidate.content.length < 1800) boost += 1;
+      const numbered = candidate.content.match(/\b\d{1,2}[.)]\s+\S+/g) || [];
+      if (numbered.length >= 4) boost += 5;
+      if (/\b(vega[mṁ]?|śloka|sloka|verse)\b/i.test(candidate.content)) boost += 3;
       return {
         ...candidate,
         score: (candidate.score ?? 0) + boost
@@ -187,16 +200,27 @@ export type SearchStreamEvent =
   | { type: 'error'; message: string };
 
 const SYSTEM_PROMPT = [
-  'You are a professional PDF assistant for readers.',
+  'You are a precise PDF assistant for scriptural and study texts.',
   'Answer only from the provided document context.',
-  'Write clear, modern, readable English. Do not copy archaic PDF phrasing.',
-  'Never use labels like "Point 1", "Point 2", or "Point 3".',
-  'Synthesize the meaning of the sources into a coherent answer that matches the user question.',
-  'Prefer short sections such as Overview, Key ideas, and Bottom line.',
-  'Use bullets only for distinct ideas, not for dumping raw sentences.',
+  'When the user asks to name, list, or enumerate items, extract the EXACT list from the source.',
+  'Keep original numbering. Preserve Sanskrit / IAST terms next to their English meaning.',
+  'When the question is about a sloka, verse, or mantra: quote the verse, then give the translation, then a short explanation.',
+  'Do not paraphrase a numbered table into vague prose. Do not drop items.',
+  'Do not invent items that are not in the context.',
+  'Use Overview / Key ideas / Bottom line only when the evidence is a short passage.',
+  'When many pages mention the topic, cover every distinct teaching and cite each page.',
   'Cite page numbers when helpful.',
-  'Never invent facts. If context is insufficient, say so clearly.'
+  'If context is insufficient, say so clearly.',
+  'Few-shot — list: Question "Name 6 urges" with a numbered table in context → reproduce 1–6 exactly (Sanskrit + English). Never summarize as Overview/Key ideas.',
+  'Few-shot — missing evidence: Question about the 2024 Olympics or blockchain when those words are absent → say the document does not discuss this. Do not guess.'
 ].join(' ');
+
+export type SearchOptions = {
+  conversationId?: string;
+  history?: ChatTurn[];
+  persist?: boolean;
+  source?: 'api' | 'eval';
+};
 
 const buildRagContext = async (documentId: string, query: string) => {
   const wantsDetail = /detail|everything|point|explain|account|about|chapter|section|\b\d+\b|\b[ivxlc]+\b/i.test(query);
@@ -271,7 +295,7 @@ const buildRagContext = async (documentId: string, query: string) => {
       content: [
         `Context:\n${contextBlocks || '(no relevant passages found)'}`,
         `Question: ${query}`,
-        'Write a professional answer in Markdown. Make sense of the question. Do not use Point 1 / Point 2 formatting.'
+        'Write a precise Markdown answer. If the question asks to name or list items, reproduce the exact numbered list from the context (Sanskrit + English when both appear). If it asks about a sloka or verse, quote it and explain it. Do not dump unrelated sentences.'
       ].join('\n\n')
     }
   ];
@@ -289,6 +313,9 @@ const resolveSpecialResponse = async (documentId: string, query: string): Promis
     return { type: 'TEXT_RESPONSE', intent: 'CONVERSATION', ...conversational };
   }
 
+  const exact = await tryExactDocumentAnswer(documentId, query);
+  if (exact) return exact;
+
   const graphResponse = await tryGraphGeneration(documentId, query);
   if (graphResponse) return graphResponse as SearchResult;
 
@@ -302,6 +329,9 @@ const resolveSpecialResponse = async (documentId: string, query: string): Promis
   if (chapterAnalysis) {
     return { type: 'TEXT_RESPONSE', intent: 'CHAPTER_ANALYSIS', ...chapterAnalysis };
   }
+
+  const deepResearch = await tryDeepDocumentResearch(documentId, query);
+  if (deepResearch) return deepResearch;
 
   return null;
 };
@@ -323,36 +353,163 @@ async function* streamPreparedAnswer(result: SearchResult): AsyncGenerator<Searc
   yield { type: 'done', answer };
 }
 
-export const searchDocumentByQuery = async (documentId: string, query: string): Promise<SearchResult> => {
-  const special = await resolveSpecialResponse(documentId, query);
-  if (special) return special;
+/** Spelling metadata attached to every response so the UI can show the fix. */
+const spellingMeta = (spelling: SpellCheckResult) =>
+  spelling.changed
+    ? {
+        spelling: {
+          original: spelling.original,
+          corrected: spelling.corrected,
+          corrections: spelling.corrections
+        }
+      }
+    : undefined;
 
-  const { messages, sources } = await buildRagContext(documentId, query);
+const withSpellingMeta = (result: SearchResult, spelling: SpellCheckResult): SearchResult => {
+  const meta = spellingMeta(spelling);
+  if (!meta) return result;
+  return { ...result, meta: { ...(result.meta ?? {}), ...meta } };
+};
+
+const mergeSearchMeta = (
+  result: SearchResult,
+  extra?: Record<string, unknown>
+): SearchResult => {
+  if (!extra || !Object.keys(extra).length) return result;
+  return { ...result, meta: { ...(result.meta ?? {}), ...extra } };
+};
+
+const resolveHistory = async (options: SearchOptions | undefined, documentId: string) => {
+  const provided = (options?.history || []).filter(
+    (turn) => (turn.role === 'user' || turn.role === 'assistant') && turn.content?.trim()
+  );
+  if (provided.length) return { history: provided.slice(-8), conversationId: options?.conversationId };
+  if (!options?.conversationId) return { history: [] as ChatTurn[], conversationId: options?.conversationId };
+  const history = await loadConversationHistory(options.conversationId, 8);
+  return { history, conversationId: options.conversationId };
+};
+
+const finalizeSearch = async (
+  documentId: string,
+  originalQuery: string,
+  rewrittenQuery: string,
+  rewritten: boolean,
+  result: SearchResult,
+  options?: SearchOptions
+): Promise<SearchResult> => {
+  let conversationId = options?.conversationId;
+  const shouldPersist = options?.persist !== false && options?.source !== 'eval';
+  if (shouldPersist) {
+    conversationId = await ensureConversation(documentId, conversationId);
+    await appendConversationTurn(
+      conversationId,
+      originalQuery,
+      result.answer || '',
+      (result.sources || []).map((source) => ({ ...source, documentId: source.documentId || documentId }))
+    );
+  }
+
+  await logTrainingEvent({
+    documentId,
+    conversationId,
+    eventType: options?.source === 'eval' ? 'eval' : 'search',
+    question: originalQuery,
+    rewrittenQuery: rewritten ? rewrittenQuery : undefined,
+    answer: result.answer,
+    pages: (result.sources || []).map((source) => Number(source.pageNumber)).filter(Number.isFinite),
+    chunkIds: (result.sources || []).map((source) => source.chunkId).filter((id): id is string => Boolean(id)),
+    intent: result.intent,
+    meta: { responseType: result.type, rewritten }
+  }).catch(() => undefined);
+
+  return mergeSearchMeta(result, {
+    conversationId,
+    ...(rewritten ? { rewrittenQuery } : {})
+  });
+};
+
+export const searchDocumentByQuery = async (
+  documentId: string,
+  query: string,
+  options?: SearchOptions
+): Promise<SearchResult> => {
+  const spelling = await correctQuerySpelling(documentId, query);
+  const { history, conversationId } = await resolveHistory(options, documentId);
+  const rewrite = rewriteQueryWithHistory(spelling.corrected, history);
+  const effectiveQuery = rewrite.query;
+  const scoped = { ...options, conversationId };
+
+  const special = await resolveSpecialResponse(documentId, effectiveQuery);
+  if (special) {
+    return finalizeSearch(
+      documentId,
+      query,
+      effectiveQuery,
+      rewrite.rewritten,
+      withSpellingMeta(special, spelling),
+      scoped
+    );
+  }
+
+  const { messages, sources } = await buildRagContext(documentId, effectiveQuery);
   const llmProvider = createLLMProvider();
   const answer = await llmProvider.generateAnswer(messages);
-  return { type: 'TEXT_RESPONSE', intent: 'DOCUMENT_QUESTION', answer, sources };
+  return finalizeSearch(
+    documentId,
+    query,
+    effectiveQuery,
+    rewrite.rewritten,
+    withSpellingMeta({ type: 'TEXT_RESPONSE', intent: 'DOCUMENT_QUESTION', answer, sources }, spelling),
+    scoped
+  );
 };
 
 /** SSE-oriented generator: streams tokens for all answer types. */
 export async function* streamSearchDocumentByQuery(
   documentId: string,
-  query: string
+  query: string,
+  options?: SearchOptions
 ): AsyncGenerator<SearchStreamEvent> {
   try {
-    const special = await resolveSpecialResponse(documentId, query);
+    const spelling = await correctQuerySpelling(documentId, query);
+    const resolved = await resolveHistory(options, documentId);
+    const shouldPersist = options?.persist !== false && options?.source !== 'eval';
+    const conversationId = shouldPersist
+      ? await ensureConversation(documentId, resolved.conversationId)
+      : resolved.conversationId;
+    const history = resolved.history;
+    const rewrite = rewriteQueryWithHistory(spelling.corrected, history);
+    const effectiveQuery = rewrite.query;
+    const scoped = { ...options, conversationId, persist: shouldPersist };
+    const extraMeta = {
+      conversationId,
+      ...(rewrite.rewritten ? { rewrittenQuery: effectiveQuery } : {}),
+      ...(spellingMeta(spelling) || {})
+    };
+
+    const special = await resolveSpecialResponse(documentId, effectiveQuery);
     if (special) {
-      for await (const event of streamPreparedAnswer(special)) {
+      const finalized = await finalizeSearch(
+        documentId,
+        query,
+        effectiveQuery,
+        rewrite.rewritten,
+        withSpellingMeta(special, spelling),
+        scoped
+      );
+      for await (const event of streamPreparedAnswer(mergeSearchMeta(finalized, extraMeta))) {
         yield event;
       }
       return;
     }
 
-    const { messages, sources } = await buildRagContext(documentId, query);
+    const { messages, sources } = await buildRagContext(documentId, effectiveQuery);
     yield {
       type: 'start',
       responseType: 'TEXT_RESPONSE',
       intent: 'DOCUMENT_QUESTION',
-      sources
+      sources,
+      meta: extraMeta
     };
 
     const llmProvider = createLLMProvider();
@@ -361,6 +518,15 @@ export async function* streamSearchDocumentByQuery(
       answer += text;
       yield { type: 'token', text };
     }
+
+    await finalizeSearch(
+      documentId,
+      query,
+      effectiveQuery,
+      rewrite.rewritten,
+      withSpellingMeta({ type: 'TEXT_RESPONSE', intent: 'DOCUMENT_QUESTION', answer, sources }, spelling),
+      scoped
+    );
     yield { type: 'done', answer };
   } catch (error) {
     yield {

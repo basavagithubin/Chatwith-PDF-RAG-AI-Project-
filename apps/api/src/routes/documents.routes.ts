@@ -16,6 +16,7 @@ router.post('/:id/reprocess', asyncRoute(documentsController.reprocessDocument))
 router.post('/:id/cancel', asyncRoute(documentsController.cancelDocument));
 router.post('/:id/search', asyncRoute(documentsController.searchDocument));
 router.post('/:id/search/stream', asyncRoute(documentsController.searchDocumentStream));
+router.post('/:id/training-feedback', asyncRoute(documentsController.recordTrainingFeedback));
 router.post('/:id/chapters/:chapterNumber/graph', asyncRoute(documentsController.getChapterGraph));
 router.get('/:id/chapters/:chapterNumber/graph', asyncRoute(documentsController.getChapterGraph));
 

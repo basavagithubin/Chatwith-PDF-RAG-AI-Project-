@@ -3,7 +3,14 @@ import { useParams } from 'react-router-dom';
 import ChatLayout from '../components/ChatLayout';
 import ChatPanel, { ChatMessage } from '../components/ChatPanel';
 import PdfViewerPanel from '../components/PdfViewerPanel';
-import { getDocument, getDocumentFileUrl, searchDocumentStream, ApiError } from '../services/documents.service';
+import {
+  getDocument,
+  getDocumentFileUrl,
+  searchDocumentStream,
+  recordTrainingFeedback,
+  ApiError
+} from '../services/documents.service';
+import { getReadingProgress, markDocumentOpened, setReadingProgress } from '../lib/library.prefs';
 import type { ChapterGraphData } from '../types/graph';
 
 const GRAPH_QUERY =
@@ -17,6 +24,29 @@ const GRAPH_HINTS = [
   'Creating graph…'
 ];
 
+const chatStorageKey = (documentId: string) => `pdfchat-chat:${documentId}`;
+
+type StoredChat = { conversationId?: string; messages: ChatMessage[] };
+
+const normalizeMessages = (items: ChatMessage[]) =>
+  items
+    .filter((item) => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string')
+    .map((item) => ({ ...item, streaming: false }));
+
+const readStoredChat = (documentId: string): StoredChat => {
+  try {
+    const raw = sessionStorage.getItem(chatStorageKey(documentId));
+    if (!raw) return { messages: [] };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return { messages: normalizeMessages(parsed) };
+    const messages = Array.isArray(parsed?.messages) ? normalizeMessages(parsed.messages) : [];
+    const conversationId = typeof parsed?.conversationId === 'string' ? parsed.conversationId : undefined;
+    return { conversationId, messages };
+  } catch {
+    return { messages: [] };
+  }
+};
+
 export default function DocumentPage() {
   const { id } = useParams();
   const [document, setDocument] = useState<any>(null);
@@ -28,11 +58,16 @@ export default function DocumentPage() {
   const [targetPage, setTargetPage] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<'pdf' | 'chat'>('chat');
   const abortRef = useRef<AbortController | null>(null);
+  const skipPersistRef = useRef(false);
+  const conversationIdRef = useRef<string | undefined>();
 
   useEffect(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setMessages([]);
+    skipPersistRef.current = true;
+    const stored = id ? readStoredChat(id) : { messages: [] as ChatMessage[] };
+    conversationIdRef.current = stored.conversationId;
+    setMessages(stored.messages);
     setError('');
     setDocument(null);
     setIsSearching(false);
@@ -44,6 +79,7 @@ export default function DocumentPage() {
 
   useEffect(() => {
     if (!id) return;
+    markDocumentOpened(id);
     let timer: number | undefined;
     let cancelled = false;
     const load = async () => {
@@ -51,6 +87,9 @@ export default function DocumentPage() {
         const details = await getDocument(id);
         if (cancelled) return;
         setDocument(details);
+        if (details.page_count && !getReadingProgress(id)) {
+          setReadingProgress(id, 1, Number(details.page_count));
+        }
         if (!['READY', 'FAILED', 'CANCELLED'].includes(details.status)) {
           timer = window.setTimeout(load, 3000);
         }
@@ -66,13 +105,35 @@ export default function DocumentPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !document?.page_count || !targetPage) return;
+    setReadingProgress(id, targetPage, Number(document.page_count));
+  }, [id, targetPage, document?.page_count]);
+
+  useEffect(() => {
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
+    if (!id) return;
+    const persistable = messages.filter((item) => !item.streaming);
+    try {
+      sessionStorage.setItem(
+        chatStorageKey(id),
+        JSON.stringify({ conversationId: conversationIdRef.current, messages: persistable })
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }, [messages, id]);
+
   const updateAssistant = (assistantId: string, patch: Partial<ChatMessage>) => {
     setMessages((current) =>
       current.map((message) => (message.id === assistantId ? { ...message, ...patch } : message))
     );
   };
 
-  const handleSend = async (query: string) => {
+  const handleSend = async (query: string, keepCount?: number) => {
     if (!id) return;
 
     abortRef.current?.abort();
@@ -89,7 +150,17 @@ export default function DocumentPage() {
       streaming: true
     };
 
-    setMessages((current) => [...current, userMessage, assistantMessage]);
+    const historyBase =
+      typeof keepCount === 'number' ? messages.slice(0, Math.max(0, keepCount)) : messages;
+    const history = historyBase
+      .filter((item) => !item.streaming && item.content.trim())
+      .slice(-8)
+      .map((item) => ({ role: item.role, content: item.content }));
+
+    setMessages((current) => {
+      const base = typeof keepCount === 'number' ? current.slice(0, Math.max(0, keepCount)) : current;
+      return [...base, userMessage, assistantMessage];
+    });
     setIsSearching(true);
     setHasStreamContent(false);
     setError('');
@@ -115,6 +186,10 @@ export default function DocumentPage() {
         query,
         {
           onStart: (event) => {
+            const nextConversationId = event.meta && typeof event.meta.conversationId === 'string'
+              ? event.meta.conversationId
+              : undefined;
+            if (nextConversationId) conversationIdRef.current = nextConversationId;
             updateAssistant(assistantId, {
               type: (event.responseType as ChatMessage['type']) || 'TEXT_RESPONSE',
               sources: event.sources,
@@ -148,7 +223,8 @@ export default function DocumentPage() {
             });
           }
         },
-        controller.signal
+        controller.signal,
+        { conversationId: conversationIdRef.current, history }
       );
 
       if (!assembled) {
@@ -188,6 +264,93 @@ export default function DocumentPage() {
     }
   };
 
+  const handleEdit = (messageId: string, query: string) => {
+    const index = messages.findIndex((item) => item.id === messageId);
+    if (index < 0) return;
+    const previous = messages[index]?.content;
+    if (id) {
+      void recordTrainingFeedback(id, {
+        eventType: 'edit',
+        question: query,
+        previousAnswer: previous,
+        conversationId: conversationIdRef.current
+      }).catch(() => undefined);
+    }
+    void handleSend(query, index);
+  };
+
+  const handleDelete = (messageId: string) => {
+    abortRef.current?.abort();
+    setIsSearching(false);
+    setHasStreamContent(false);
+    setLoadingHint(undefined);
+    setMessages((current) => {
+      const index = current.findIndex((item) => item.id === messageId);
+      if (index < 0) return current;
+      const target = current[index];
+      if (target.role === 'user') {
+        const next = current[index + 1];
+        const end = next?.role === 'assistant' ? index + 2 : index + 1;
+        return [...current.slice(0, index), ...current.slice(end)];
+      }
+      const prev = current[index - 1];
+      if (prev?.role === 'user') {
+        return [...current.slice(0, index - 1), ...current.slice(index + 1)];
+      }
+      return [...current.slice(0, index), ...current.slice(index + 1)];
+    });
+  };
+
+  const handleRegenerate = (assistantId: string) => {
+    const index = messages.findIndex((item) => item.id === assistantId);
+    const previous = index > 0 ? messages[index - 1] : null;
+    const current = messages[index];
+    if (!previous || previous.role !== 'user') return;
+    if (id) {
+      void recordTrainingFeedback(id, {
+        eventType: 'regenerate',
+        question: previous.content,
+        previousAnswer: current?.content,
+        conversationId: conversationIdRef.current
+      }).catch(() => undefined);
+    }
+    void handleSend(previous.content, index - 1);
+  };
+
+  const handleAccept = (assistantId: string) => {
+    const index = messages.findIndex((item) => item.id === assistantId);
+    const current = messages[index];
+    const previous = index > 0 ? messages[index - 1] : null;
+    if (!current || !id) return;
+    void recordTrainingFeedback(id, {
+      eventType: 'accepted',
+      question: previous?.role === 'user' ? previous.content : undefined,
+      answer: current.content,
+      conversationId: conversationIdRef.current,
+      pages: (current.sources || [])
+        .map((source) => Number(source.pageNumber))
+        .filter((page) => Number.isFinite(page))
+    }).catch(() => undefined);
+  };
+
+  const handleClear = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setMessages([]);
+    setError('');
+    setIsSearching(false);
+    setHasStreamContent(false);
+    setLoadingHint(undefined);
+    conversationIdRef.current = undefined;
+    if (id) {
+      try {
+        sessionStorage.removeItem(chatStorageKey(id));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   const openPage = (page: number) => {
     setTargetPage(page);
     setMobileTab('pdf');
@@ -196,13 +359,13 @@ export default function DocumentPage() {
   return (
     <ChatLayout documentName={document?.name}>
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex border-b border-ink-200 bg-white px-3 py-2 md:hidden">
+        <div className="flex border-b border-ink-200 bg-surface px-3 py-2 md:hidden">
           <div className="flex w-full rounded-xl bg-surface-muted p-1">
             <button
               type="button"
               onClick={() => setMobileTab('pdf')}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                mobileTab === 'pdf' ? 'bg-white text-ink-950 shadow-card' : 'text-ink-500'
+                mobileTab === 'pdf' ? 'bg-surface text-ink-950 shadow-card' : 'text-ink-500'
               }`}
             >
               PDF
@@ -211,7 +374,7 @@ export default function DocumentPage() {
               type="button"
               onClick={() => setMobileTab('chat')}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                mobileTab === 'chat' ? 'bg-white text-ink-950 shadow-card' : 'text-ink-500'
+                mobileTab === 'chat' ? 'bg-surface text-ink-950 shadow-card' : 'text-ink-500'
               }`}
             >
               Chat
@@ -239,6 +402,11 @@ export default function DocumentPage() {
             loadingHint={loadingHint}
             error={error}
             onSend={handleSend}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRegenerate={handleRegenerate}
+            onAccept={handleAccept}
+            onClear={handleClear}
             onOpenPage={openPage}
             className={mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}
           />

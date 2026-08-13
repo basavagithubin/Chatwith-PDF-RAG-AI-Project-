@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Portfhelio accuracy eval loop.
+ * PDFChat accuracy eval loop.
  *
  * Usage:
- *   node apps/api/scripts/eval-accuracy.mjs
  *   npm run eval:accuracy --workspace=pdf-chat-ai-api
  *
  * Env:
@@ -38,10 +37,19 @@ const COMPARED_METRICS = [
   'retrievalHitRate',
   'retrievalRecall',
   'factCoverageRate',
-  'noHallucinationRate'
+  'noHallucinationRate',
+  'mustIncludeRate',
+  'mustExcludeRate',
+  'listCompletenessRate',
+  'sectionCoverageRate',
+  'chunkHitRate'
 ];
 
-const normalize = (value) => String(value || '').toLowerCase();
+const normalize = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
 
 const readBaseline = async (baselinePath) => {
   try {
@@ -68,8 +76,13 @@ const sourcePages = (result) => {
       pages.add(p);
     }
   }
+  const pageMentions = String(result?.answer || '').matchAll(/\b(?:p(?:age)?\.?\s*)(\d{1,3})\b/gi);
+  for (const match of pageMentions) pages.add(Number(match[1]));
   return [...pages];
 };
+
+const sourceChunkIds = (result) =>
+  (result?.sources || []).map((source) => source.chunkId).filter(Boolean);
 
 const hitAtK = (retrieved, expected, k = 8) => {
   if (!expected?.length) return null;
@@ -94,6 +107,62 @@ const factCoverage = (answer, keyFacts, minKeyFacts = 1) => {
   };
 };
 
+const phraseCoverage = (answer, phrases, mode) => {
+  if (!phrases?.length) return null;
+  const text = normalize(answer);
+  const matched = phrases.filter((phrase) => text.includes(normalize(phrase)));
+  if (mode === 'exclude') {
+    return { score: matched.length ? 0 : 1, matched, required: 0 };
+  }
+  return {
+    score: matched.length === phrases.length ? 1 : matched.length / phrases.length,
+    matched,
+    required: phrases.length
+  };
+};
+
+const countListItems = (answer) => {
+  const numbered = new Set();
+  for (const match of String(answer || '').matchAll(/^\s*(\d{1,2})[.)]\s+\S+/gm)) {
+    numbered.add(Number(match[1]));
+  }
+  if (numbered.size) return numbered.size;
+  const bullets = String(answer || '').match(/^\s*[-*]\s+\S+/gm) || [];
+  return bullets.length;
+};
+
+const listCompleteness = (answer, requiredItemCount) => {
+  if (!requiredItemCount) return null;
+  const count = countListItems(answer);
+  return {
+    score: count >= requiredItemCount ? 1 : count / requiredItemCount,
+    count,
+    required: requiredItemCount
+  };
+};
+
+const sectionCoverage = (answer, requiredSections) => {
+  if (!requiredSections?.length) return null;
+  const text = normalize(answer);
+  const matched = requiredSections.filter((section) => text.includes(normalize(section)));
+  return {
+    score: matched.length === requiredSections.length ? 1 : matched.length / requiredSections.length,
+    matched,
+    required: requiredSections.length
+  };
+};
+
+const chunkHit = (retrievedIds, expectedIds) => {
+  if (!expectedIds?.length) return null;
+  const set = new Set(retrievedIds);
+  const hits = expectedIds.filter((id) => set.has(id));
+  return {
+    hit: hits.length > 0,
+    recall: hits.length / expectedIds.length,
+    hits
+  };
+};
+
 const hallucinationOk = (answer, requireInsufficient) => {
   if (!requireInsufficient) return null;
   const text = String(answer || '');
@@ -110,7 +179,27 @@ const pickGoldSet = (sets, documentName) => {
   return sets.find((set) => (set.nameContains || []).includes('*')) || null;
 };
 
-const fetchJson = async (url, options = {}) => {
+const expandItems = (items) => {
+  const expanded = [];
+  for (const item of items || []) {
+    expanded.push(item);
+    for (const [index, question] of (item.paraphrases || []).entries()) {
+      if (!question?.trim()) continue;
+      expanded.push({
+        ...item,
+        id: `${item.id}__p${index + 1}`,
+        question: question.trim(),
+        paraphrases: undefined,
+        history: item.history
+      });
+    }
+  }
+  return expanded;
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchJson = async (url, options = {}, attempt = 1) => {
   const response = await fetch(url, options);
   const text = await response.text();
   let body;
@@ -118,6 +207,11 @@ const fetchJson = async (url, options = {}) => {
     body = text ? JSON.parse(text) : null;
   } catch {
     body = { raw: text };
+  }
+  if (response.status === 429 && attempt <= 4) {
+    const waitSec = Number(body?.retryAfter || response.headers.get('Retry-After') || 15);
+    await sleep(Math.max(1, waitSec) * 1000);
+    return fetchJson(url, options, attempt + 1);
   }
   if (!response.ok) {
     const err = new Error(`HTTP ${response.status} for ${url}`);
@@ -131,19 +225,34 @@ const evaluateItem = async (documentId, item) => {
   const started = Date.now();
   const result = await fetchJson(`${API_BASE}/api/documents/${documentId}/search`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: item.question })
+    headers: { 'Content-Type': 'application/json', 'X-Eval-Run': '1' },
+    body: JSON.stringify({
+      query: item.question,
+      history: item.history || [],
+      persist: false,
+      source: 'eval'
+    })
   });
 
   const answer = result?.answer || '';
   const pages = sourcePages(result);
   const retrieval = hitAtK(pages, item.expectedPages, 8);
   const facts = factCoverage(answer, item.keyFacts, item.minKeyFacts);
+  const mustInclude = phraseCoverage(answer, item.mustInclude, 'include');
+  const mustExclude = phraseCoverage(answer, item.mustExclude, 'exclude');
+  const list = listCompleteness(answer, item.requiredItemCount);
+  const sections = sectionCoverage(answer, item.requiredSections);
+  const chunks = chunkHit(sourceChunkIds(result), item.expectedChunkIds);
   const noHallucination = hallucinationOk(answer, item.requireInsufficient);
 
   const checks = [];
   if (retrieval) checks.push(retrieval.hit ? 1 : 0);
   if (item.keyFacts?.length) checks.push(facts.score >= 1 ? 1 : facts.score);
+  if (mustInclude) checks.push(mustInclude.score);
+  if (mustExclude) checks.push(mustExclude.score);
+  if (list) checks.push(list.score);
+  if (sections) checks.push(sections.score);
+  if (chunks) checks.push(chunks.hit ? 1 : 0);
   if (item.requireInsufficient) checks.push(noHallucination ? 1 : 0);
   if (!checks.length) checks.push(answer.trim().length > 40 ? 1 : 0);
 
@@ -155,14 +264,26 @@ const evaluateItem = async (documentId, item) => {
     intent: item.intent,
     responseIntent: result?.intent || null,
     responseType: result?.type || null,
+    rewrittenQuery: result?.meta?.rewrittenQuery || null,
     score,
     retrieval,
     facts,
+    mustInclude,
+    mustExclude,
+    list,
+    sections,
+    chunks,
     noHallucination,
     pages,
     latencyMs: Date.now() - started,
     answerPreview: String(answer).replace(/\s+/g, ' ').slice(0, 220)
   };
+};
+
+const bump = (summary, key, passed, applicable) => {
+  if (!applicable) return;
+  summary[`${key}Total`] += 1;
+  if (passed) summary[`${key}Pass`] += 1;
 };
 
 const main = async () => {
@@ -186,6 +307,7 @@ const main = async () => {
   const report = {
     generatedAt: new Date().toISOString(),
     apiBase: API_BASE,
+    goldVersion: gold.version || null,
     provider: providers ? `llm=${providers.llm}, embedding=${providers.embedding}` : 'unknown',
     providers,
     documents: [],
@@ -198,7 +320,17 @@ const main = async () => {
       factPass: 0,
       factTotal: 0,
       hallucinationPass: 0,
-      hallucinationTotal: 0
+      hallucinationTotal: 0,
+      mustIncludePass: 0,
+      mustIncludeTotal: 0,
+      mustExcludePass: 0,
+      mustExcludeTotal: 0,
+      listPass: 0,
+      listTotal: 0,
+      sectionPass: 0,
+      sectionTotal: 0,
+      chunkPass: 0,
+      chunkTotal: 0
     }
   };
 
@@ -213,9 +345,10 @@ const main = async () => {
       results: []
     };
 
-    console.log(`\nEvaluating ${docReport.documentName} (${doc.id}) with set ${set.id}`);
+    const items = expandItems(set.items || []);
+    console.log(`\nEvaluating ${docReport.documentName} (${doc.id}) with set ${set.id} (${items.length} items)`);
 
-    for (const item of set.items || []) {
+    for (const item of items) {
       try {
         const row = await evaluateItem(doc.id, item);
         docReport.results.push(row);
@@ -234,6 +367,11 @@ const main = async () => {
           report.summary.hallucinationTotal += 1;
           if (row.noHallucination) report.summary.hallucinationPass += 1;
         }
+        bump(report.summary, 'mustInclude', (row.mustInclude?.score ?? 1) >= 1, Boolean(row.mustInclude));
+        bump(report.summary, 'mustExclude', (row.mustExclude?.score ?? 1) >= 1, Boolean(row.mustExclude));
+        bump(report.summary, 'list', (row.list?.score ?? 1) >= 1, Boolean(row.list));
+        bump(report.summary, 'section', (row.sections?.score ?? 1) >= 1, Boolean(row.sections));
+        bump(report.summary, 'chunk', Boolean(row.chunks?.hit), Boolean(row.chunks));
         console.log(
           `  [${row.score.toFixed(2)}] ${item.id} · pages=${row.pages.slice(0, 6).join(',') || '-'} · ${row.answerPreview.slice(0, 80)}…`
         );
@@ -263,6 +401,21 @@ const main = async () => {
   report.summary.noHallucinationRate = report.summary.hallucinationTotal
     ? Number((report.summary.hallucinationPass / report.summary.hallucinationTotal).toFixed(3))
     : null;
+  report.summary.mustIncludeRate = report.summary.mustIncludeTotal
+    ? Number((report.summary.mustIncludePass / report.summary.mustIncludeTotal).toFixed(3))
+    : null;
+  report.summary.mustExcludeRate = report.summary.mustExcludeTotal
+    ? Number((report.summary.mustExcludePass / report.summary.mustExcludeTotal).toFixed(3))
+    : null;
+  report.summary.listCompletenessRate = report.summary.listTotal
+    ? Number((report.summary.listPass / report.summary.listTotal).toFixed(3))
+    : null;
+  report.summary.sectionCoverageRate = report.summary.sectionTotal
+    ? Number((report.summary.sectionPass / report.summary.sectionTotal).toFixed(3))
+    : null;
+  report.summary.chunkHitRate = report.summary.chunkTotal
+    ? Number((report.summary.chunkPass / report.summary.chunkTotal).toFixed(3))
+    : null;
 
   const outDir = path.join(__dirname, '..', 'evals', 'reports');
   await fs.mkdir(outDir, { recursive: true });
@@ -270,8 +423,13 @@ const main = async () => {
   const outPath = path.join(outDir, `eval-${stamp}.json`);
   await fs.writeFile(outPath, JSON.stringify(report, null, 2), 'utf8');
 
+  const providerTag = String(providers?.embedding || 'unknown').replace(/[^\w-]+/g, '');
+  const providerPath = path.join(outDir, `provider-${providerTag || 'unknown'}.json`);
+  await fs.writeFile(providerPath, JSON.stringify(report, null, 2), 'utf8');
+
   console.log('\n=== Accuracy summary ===');
   console.log(JSON.stringify(report.summary, null, 2));
+  console.log(`provider: ${report.provider}`);
 
   const baselinePath = path.join(outDir, 'baseline.json');
   const baseline = await readBaseline(baselinePath);
@@ -291,6 +449,7 @@ const main = async () => {
   }
 
   console.log(`Report written to ${outPath}`);
+  console.log(`Provider snapshot: ${providerPath}`);
 };
 
 main().catch((error) => {

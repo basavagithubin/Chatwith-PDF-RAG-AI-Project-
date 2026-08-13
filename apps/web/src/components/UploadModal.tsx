@@ -51,8 +51,8 @@ export default function UploadModal({ open, onClose, onUploaded }: UploadModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg animate-fade-up rounded-2xl bg-white p-6 shadow-lift">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg animate-fade-up rounded-2xl bg-surface p-6 shadow-lift">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Upload</p>
@@ -94,7 +94,7 @@ export default function UploadModal({ open, onClose, onUploaded }: UploadModalPr
               : 'border-ink-200 bg-surface-muted hover:border-brand-400 hover:bg-brand-50/40'
           }`}
         >
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-card">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface shadow-card">
             <svg className="h-7 w-7 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V8m0 0l-3 3m3-3l3 3M4 16.5V18a2 2 0 002 2h12a2 2 0 002-2v-1.5" />
             </svg>
@@ -129,7 +129,7 @@ export default function UploadModal({ open, onClose, onUploaded }: UploadModalPr
           </div>
         )}
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="panel-danger mt-3 rounded-xl px-3 py-2 text-sm">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="btn-ghost">
