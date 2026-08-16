@@ -1,3 +1,5 @@
+import { getAccessToken } from '../lib/insforge';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
 
 const CLIENT_ID_KEY = 'portfhelio_client_id';
@@ -25,10 +27,14 @@ export const getClientId = () => {
   return created;
 };
 
-const withClientHeaders = (headers?: HeadersInit): HeadersInit => ({
-  'X-Client-Id': getClientId(),
-  ...(headers || {})
-});
+const withClientHeaders = async (headers?: HeadersInit): Promise<HeadersInit> => {
+  const token = await getAccessToken();
+  return {
+    'X-Client-Id': getClientId(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(headers || {})
+  };
+};
 
 const parseRetryAfter = (body: { retryAfter?: number }, res: Response) => {
   if (body.retryAfter != null) return body.retryAfter;
@@ -39,7 +45,7 @@ const parseRetryAfter = (body: { retryAfter?: number }, res: Response) => {
 const request = async (input: RequestInfo, init?: RequestInit) => {
   const res = await fetch(input, {
     ...init,
-    headers: withClientHeaders(init?.headers)
+    headers: await withClientHeaders(init?.headers)
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -143,7 +149,7 @@ export const searchDocumentStream = async (
 ) => {
   const res = await fetch(`${API_BASE}/documents/${id}/search/stream`, {
     method: 'POST',
-    headers: withClientHeaders({
+    headers: await withClientHeaders({
       'Content-Type': 'application/json',
       Accept: 'text/event-stream'
     }),
@@ -224,3 +230,13 @@ export const getChapterGraph = async (id: string, chapterNumber: number, graphTy
 };
 
 export const getDocumentFileUrl = (id: string) => `${API_BASE}/documents/${id}/file`;
+
+export const fetchDocumentFile = async (id: string) => {
+  const res = await fetch(getDocumentFileUrl(id), {
+    headers: await withClientHeaders({ Accept: 'application/pdf' })
+  });
+  if (!res.ok) {
+    throw new ApiError('Unable to load the PDF.', res.status);
+  }
+  return res.blob();
+};

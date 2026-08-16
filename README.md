@@ -19,6 +19,38 @@ npm run dev:local
 - Frontend: http://localhost:4173/
 - API: http://localhost:5000
 
+## Docker
+
+Runs Postgres (pgvector), Redis, the API, and an nginx frontend. Postgres and Redis stay on the internal network. The API is bound to localhost only; the UI is on port 8080.
+
+```bash
+cp .env.example .env
+# set POSTGRES_PASSWORD and REDIS_PASSWORD before any public deploy
+docker compose up --build
+```
+
+- App: http://localhost:8080
+- API (host only): http://127.0.0.1:5000
+
+Production checklist:
+
+- Change `POSTGRES_PASSWORD` and `REDIS_PASSWORD`
+- Set `AUTH_REQUIRED=true` plus `VITE_INSFORGE_URL` and `VITE_INSFORGE_ANON_KEY`
+- Set `CORS_ORIGINS` to your public origin
+- Rebuild the web image after changing any `VITE_*` value
+
+```bash
+docker compose down
+```
+
+## Security
+
+- Helmet headers, CORS allowlist, and rate limits on the API
+- Optional InsForge JWT checks (`AUTH_REQUIRED=true`)
+- PDF-only uploads with size, checksum, and `%PDF-` magic-byte checks
+- UUID path checks so document IDs cannot traverse storage
+- Production errors do not leak stack details; `/health` hides provider names unless `HEALTH_DETAILS=true`
+
 ## Features
 
 - Streaming chat answers (SSE)
@@ -31,6 +63,8 @@ npm run dev:local
 
 | Command | Description |
 |---------|-------------|
+| `npm run docker:up` | Build and start the full Docker stack |
+| `npm run docker:down` | Stop the Docker stack |
 | `npm run dev:local` | Start Postgres, Redis, API, and web |
 | `npm run build` | Build all workspaces |
 | `npm run eval:accuracy` | Score answers against the gold set and compare to the baseline |

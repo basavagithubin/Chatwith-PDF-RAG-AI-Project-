@@ -13,6 +13,15 @@ export const insforge = isAuthConfigured
   ? createClient({ baseUrl: baseUrl as string, anonKey: anonKey as string })
   : null;
 
+export const getAccessToken = async () => {
+  if (!insforge) return null;
+  try {
+    return (await insforge.getHttpClient().getValidAccessToken()) || null;
+  } catch {
+    return null;
+  }
+};
+
 export type AuthUser = {
   id: string;
   email: string;

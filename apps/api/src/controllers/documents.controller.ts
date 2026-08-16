@@ -9,6 +9,8 @@ import type { ChatTurn } from '../services/query.rewrite.js';
 import { invalidateChapterCache } from '../services/chapter.analysis.js';
 import { getChapterGraphByNumber, invalidateGraphCache } from '../services/chapter.graph.js';
 import { invalidateVocabulary } from '../services/spellcheck.service.js';
+import { maxFileBytes, maxQueryChars, UUID_RE } from '../config/security.js';
+import { sanitizePdfName } from '../middleware/validate.js';
 import { getDocumentFilePath } from '../services/storage.service.js';
 import fs from 'fs/promises';
 
@@ -23,11 +25,12 @@ const fileExists = async (filePath: string) => {
 
 export const initUpload = async (req: Request, res: Response) => {
   const { name, size, checksum, chunkCount } = req.body;
-  if (!name || !String(name).toLowerCase().endsWith('.pdf') || !Number.isFinite(Number(size)) || Number(size) <= 0 || !checksum || !Number.isInteger(Number(chunkCount)) || Number(chunkCount) <= 0) {
+  const safeName = sanitizePdfName(String(name || ''));
+  if (!safeName || !Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > maxFileBytes() || !checksum || !Number.isInteger(Number(chunkCount)) || Number(chunkCount) <= 0) {
     return res.status(400).json({ error: 'MISSING_UPLOAD_METADATA' });
   }
 
-  const session = await initUploadSession({ name, size: Number(size), checksum, chunkCount: Number(chunkCount) });
+  const session = await initUploadSession({ name: safeName, size: Number(size), checksum, chunkCount: Number(chunkCount) });
   return res.status(201).json(session);
 };
 
@@ -53,7 +56,7 @@ export const uploadChunk = async (req: Request, res: Response) => {
 
 export const completeUpload = async (req: Request, res: Response) => {
   const { documentId } = req.body;
-  if (!documentId) return res.status(400).json({ error: 'MISSING_DOCUMENT_ID' });
+  if (!documentId || !UUID_RE.test(String(documentId))) return res.status(400).json({ error: 'MISSING_DOCUMENT_ID' });
   const completion = await completeUploadSession({ documentId });
   if (completion.actualChecksum !== completion.expectedChecksum) {
     return res.status(422).json({ error: 'CHECKSUM_MISMATCH' });
@@ -174,7 +177,8 @@ const readSearchOptions = (req: Request) => {
 export const searchDocument = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { query } = req.body;
-  if (!query) return res.status(400).json({ error: 'MISSING_QUERY' });
+  if (!query || typeof query !== 'string') return res.status(400).json({ error: 'MISSING_QUERY' });
+  if (query.length > maxQueryChars()) return res.status(400).json({ error: 'QUERY_TOO_LONG' });
 
   const result = await searchDocumentByQuery(id, query, readSearchOptions(req));
   res.json(result);
@@ -183,7 +187,8 @@ export const searchDocument = async (req: Request, res: Response) => {
 export const searchDocumentStream = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { query } = req.body;
-  if (!query) return res.status(400).json({ error: 'MISSING_QUERY' });
+  if (!query || typeof query !== 'string') return res.status(400).json({ error: 'MISSING_QUERY' });
+  if (query.length > maxQueryChars()) return res.status(400).json({ error: 'QUERY_TOO_LONG' });
 
   res.status(200);
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

@@ -20,15 +20,27 @@ export const ensureStorage = async () => {
   await fs.mkdir(path.join(storageRoot, 'documents'), { recursive: true });
 };
 
+const assertSafeId = (documentId: string) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(documentId)) {
+    throw new Error('INVALID_ID');
+  }
+};
+
 export const getDocumentFilePath = (documentId: string) => {
+  assertSafeId(documentId);
   return path.join(storageRoot, 'documents', `${documentId}.pdf`);
 };
 
 export const getUploadChunkPath = (documentId: string, chunkIndex: number) => {
+  assertSafeId(documentId);
+  if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > 50_000) {
+    throw new Error('INVALID_CHUNK_INDEX');
+  }
   return path.join(storageRoot, 'tmp', documentId, `${chunkIndex}.chunk`);
 };
 
 export const getUploadTempDir = (documentId: string) => {
+  assertSafeId(documentId);
   return path.join(storageRoot, 'tmp', documentId);
 };
 

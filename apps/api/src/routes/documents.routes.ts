@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as documentsController from '../controllers/documents.controller.js';
+import { requireUuidParam } from '../middleware/validate.js';
 
 const router = Router();
 const asyncRoute = (handler: (...args: any[]) => any) => (req: any, res: any, next: any) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -8,6 +9,7 @@ router.post('/upload/init', asyncRoute(documentsController.initUpload));
 router.post('/upload/chunk', asyncRoute(documentsController.uploadChunk));
 router.post('/upload/complete', asyncRoute(documentsController.completeUpload));
 router.get('/', asyncRoute(documentsController.listDocuments));
+router.use('/:id', requireUuidParam('id'));
 router.get('/:id/file', asyncRoute(documentsController.getDocumentFile));
 router.get('/:id', asyncRoute(documentsController.getDocument));
 router.delete('/:id', asyncRoute(documentsController.deleteDocument));

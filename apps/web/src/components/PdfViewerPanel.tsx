@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import { DownloadIcon, ZoomInIcon, ZoomOutIcon } from './Icons';
+import { fetchDocumentFile } from '../services/documents.service';
 
 type PdfViewerPanelProps = {
-  fileUrl: string;
+  documentId: string;
   documentName?: string;
   pageCount?: number | null;
   status?: string;
@@ -13,7 +14,7 @@ type PdfViewerPanelProps = {
 };
 
 export default function PdfViewerPanel({
-  fileUrl,
+  documentId,
   documentName,
   pageCount,
   status,
@@ -21,9 +22,33 @@ export default function PdfViewerPanel({
   className = ''
 }: PdfViewerPanelProps) {
   const [scale, setScale] = useState(1);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const isReady = status === 'READY';
   const isFailed = status === 'FAILED' || status === 'CANCELLED';
   const initialPage = Math.max(0, (targetPage ?? 1) - 1);
+
+  useEffect(() => {
+    if (!isReady || !documentId) return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void fetchDocumentFile(documentId)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setFileUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setFileUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [documentId, isReady]);
 
   return (
     <section className={`relative flex min-w-0 flex-1 flex-col bg-surface-canvas ${className}`}>
@@ -50,7 +75,7 @@ export default function PdfViewerPanel({
 
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="mx-auto max-w-3xl">
-          {isReady ? (
+          {isReady && fileUrl ? (
             <div className="overflow-hidden rounded-xl bg-surface shadow-lift">
               <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
                 <Viewer
@@ -97,6 +122,7 @@ export default function PdfViewerPanel({
               {typeof targetPage === 'number' ? `Page ${targetPage}` : `${pageCount ?? '—'} pages`}
             </span>
             <div className="mx-1 h-5 w-px bg-ink-200" />
+            {fileUrl ? (
             <a
               href={fileUrl}
               download={documentName}
@@ -105,6 +131,7 @@ export default function PdfViewerPanel({
             >
               <DownloadIcon />
             </a>
+            ) : null}
           </div>
         </div>
       )}

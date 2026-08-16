@@ -5,7 +5,6 @@ import ChatPanel, { ChatMessage } from '../components/ChatPanel';
 import PdfViewerPanel from '../components/PdfViewerPanel';
 import {
   getDocument,
-  getDocumentFileUrl,
   searchDocumentStream,
   recordTrainingFeedback,
   ApiError
@@ -385,7 +384,7 @@ export default function DocumentPage() {
         <div className="flex min-h-0 flex-1">
           {id && (
             <PdfViewerPanel
-              fileUrl={getDocumentFileUrl(id)}
+              documentId={id}
               documentName={document?.name}
               pageCount={document?.page_count}
               status={document?.status}

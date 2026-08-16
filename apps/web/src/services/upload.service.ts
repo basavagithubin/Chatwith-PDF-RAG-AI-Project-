@@ -1,10 +1,20 @@
+import { getAccessToken } from '../lib/insforge';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
 const CHUNK_SIZE = Number(import.meta.env.VITE_UPLOAD_CHUNK_SIZE ?? 10_485_760);
+
+const authHeaders = async (headers?: HeadersInit): Promise<HeadersInit> => {
+  const token = await getAccessToken();
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(headers || {})
+  };
+};
 
 export const initUpload = async ({ name, size, checksum, chunkCount }: { name: string; size: number; checksum: string; chunkCount: number; }) => {
   const response = await fetch(`${API_BASE}/documents/upload/init`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ name, size, checksum, chunkCount })
   });
   const body = await response.json().catch(() => ({}));
@@ -15,11 +25,11 @@ export const initUpload = async ({ name, size, checksum, chunkCount }: { name: s
 export const uploadChunk = async ({ documentId, chunkIndex, chunk }: { documentId: string; chunkIndex: number; chunk: Blob; }) => {
   const response = await fetch(`${API_BASE}/documents/upload/chunk`, {
     method: 'POST',
-    headers: {
+    headers: await authHeaders({
       'Content-Type': 'application/octet-stream',
       'x-document-id': documentId,
       'x-chunk-index': String(chunkIndex)
-    },
+    }),
     body: chunk
   });
   const body = await response.json().catch(() => ({}));
@@ -30,7 +40,7 @@ export const uploadChunk = async ({ documentId, chunkIndex, chunk }: { documentI
 export const completeUpload = async (documentId: string) => {
   const response = await fetch(`${API_BASE}/documents/upload/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ documentId })
   });
   const body = await response.json().catch(() => ({}));

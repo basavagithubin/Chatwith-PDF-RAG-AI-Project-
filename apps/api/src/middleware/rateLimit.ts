@@ -147,8 +147,10 @@ const applyHeaders = (
   }
 };
 
-const isEvalRun = (req: Request) =>
-  req.header('x-eval-run') === '1' || req.body?.source === 'eval';
+const isEvalRun = (req: Request) => {
+  if ((process.env.NODE_ENV || 'development') === 'production') return false;
+  return req.header('x-eval-run') === '1' || req.body?.source === 'eval';
+};
 
 export const createRateLimiter = (bucket: RateLimitBucket) => {
   return async (req: Request, res: Response, next: NextFunction) => {

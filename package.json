@@ -6,6 +6,8 @@
   ],
   "scripts": {
     "dev": "docker compose up --build",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
     "dev:services": "node scripts/dev-services.mjs",
     "dev:api": "npm run build --workspace=pdf-chat-ai-api && npm run start --workspace=pdf-chat-ai-api",
     "dev:web": "npm run dev --workspace=pdf-chat-ai-web",

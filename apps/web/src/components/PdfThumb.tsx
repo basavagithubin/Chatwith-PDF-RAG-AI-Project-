@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { getDocumentFileUrl } from '../services/documents.service';
+import { fetchDocumentFile } from '../services/documents.service';
 import { displayTitle } from '../lib/library.prefs';
 
 type PdfThumbProps = {
@@ -45,7 +45,8 @@ export default function PdfThumb({ documentId, name, sourceAvailable = true, cla
               lib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
             }
 
-            const loadingTask = lib.getDocument(getDocumentFileUrl(documentId));
+            const blob = await fetchDocumentFile(documentId);
+            const loadingTask = lib.getDocument({ data: await blob.arrayBuffer() });
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
             const viewport = page.getViewport({ scale: 1 });
