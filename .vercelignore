@@ -1,0 +1,9 @@
+.data
+storage
+apps/api
+apps/api/**
+.insforge
+*.log
+*.traineddata
+docker-compose.yml
+apps/web/dist

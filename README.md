@@ -32,6 +32,24 @@ docker compose up --build
 - App: http://localhost:8080
 - API (host only): http://127.0.0.1:5000
 
+## Vercel (frontend only)
+
+The Express API uses Redis, BullMQ workers, and local PDF storage, so it cannot run as a Vercel serverless function. Deploy **`apps/web`** on Vercel and host the API with Docker, Railway, Render, or a VM.
+
+1. Import this GitHub repo in Vercel. Leave **Root Directory** as the repository root so `vercel.json` is used.
+2. Vercel installs and builds only the web app (`npm install --prefix apps/web`). Native API packages are not installed, which avoids production build crashes.
+3. Set these **Production** environment variables in the Vercel project, then redeploy:
+
+| Variable | Value |
+|----------|--------|
+| `VITE_API_BASE_URL` | Public API URL, e.g. `https://api.example.com/api` (not `localhost`) |
+| `VITE_INSFORGE_URL` | Optional InsForge project URL |
+| `VITE_INSFORGE_ANON_KEY` | Optional InsForge anon key |
+
+4. On the API host, add the Vercel origin to `CORS_ORIGINS` (for example `https://your-app.vercel.app`) and restart the API.
+
+`VITE_*` values are baked in at build time. Changing them requires a new Vercel deploy.
+
 Production checklist:
 
 - Change `POSTGRES_PASSWORD` and `REDIS_PASSWORD`

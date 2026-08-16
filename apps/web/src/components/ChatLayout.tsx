@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import UploadModal from './UploadModal';
 import { getDocuments } from '../services/documents.service';
 import { UploadContext } from '../context/UploadContext';
+import { isApiConfigured } from '../lib/api.config';
 import { LibraryDocument, LibraryNav } from '../lib/library.prefs';
 
 type ChatLayoutProps = {
@@ -21,6 +22,9 @@ export default function ChatLayout({ children, documentName, onDocumentsChange }
   const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(
+    isApiConfigured ? null : 'Set VITE_API_BASE_URL in Vercel to your public API URL (not localhost).'
+  );
   const [uploadOpen, setUploadOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nav, setNavState] = useState<LibraryNav>(
@@ -36,11 +40,18 @@ export default function ChatLayout({ children, documentName, onDocumentsChange }
   };
 
   const loadDocuments = async () => {
+    if (!isApiConfigured) {
+      setDocuments([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setDocuments(await getDocuments());
+      setApiError(null);
       onDocumentsChange?.();
-    } catch {
+    } catch (error) {
       setDocuments([]);
+      setApiError(error instanceof Error ? error.message : 'Could not reach the API.');
     } finally {
       setIsLoading(false);
     }
@@ -99,9 +110,16 @@ export default function ChatLayout({ children, documentName, onDocumentsChange }
               aria-label="Close sidebar"
             />
           )}
-          {typeof children === 'function'
-            ? children({ documents, isLoading, nav, openUpload, setNav })
-            : children}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {apiError && (
+              <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+                {apiError}
+              </div>
+            )}
+            {typeof children === 'function'
+              ? children({ documents, isLoading, nav, openUpload, setNav })
+              : children}
+          </div>
         </div>
         <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />
       </div>

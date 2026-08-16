@@ -1,6 +1,5 @@
+import { API_BASE, isApiConfigured } from '../lib/api.config';
 import { getAccessToken } from '../lib/insforge';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
 
 const CLIENT_ID_KEY = 'portfhelio_client_id';
 
@@ -43,6 +42,13 @@ const parseRetryAfter = (body: { retryAfter?: number }, res: Response) => {
 };
 
 const request = async (input: RequestInfo, init?: RequestInit) => {
+  if (!isApiConfigured) {
+    throw new ApiError(
+      'API URL is not configured. Set VITE_API_BASE_URL on Vercel to your public API (for example https://api.example.com/api).',
+      503,
+      'not_configured'
+    );
+  }
   const res = await fetch(input, {
     ...init,
     headers: await withClientHeaders(init?.headers)
@@ -147,6 +153,13 @@ export const searchDocumentStream = async (
   signal?: AbortSignal,
   options?: SearchRequestOptions
 ) => {
+  if (!isApiConfigured) {
+    throw new ApiError(
+      'API URL is not configured. Set VITE_API_BASE_URL on Vercel to your public API.',
+      503,
+      'not_configured'
+    );
+  }
   const res = await fetch(`${API_BASE}/documents/${id}/search/stream`, {
     method: 'POST',
     headers: await withClientHeaders({
@@ -232,6 +245,13 @@ export const getChapterGraph = async (id: string, chapterNumber: number, graphTy
 export const getDocumentFileUrl = (id: string) => `${API_BASE}/documents/${id}/file`;
 
 export const fetchDocumentFile = async (id: string) => {
+  if (!isApiConfigured) {
+    throw new ApiError(
+      'API URL is not configured. Set VITE_API_BASE_URL on Vercel to your public API.',
+      503,
+      'not_configured'
+    );
+  }
   const res = await fetch(getDocumentFileUrl(id), {
     headers: await withClientHeaders({ Accept: 'application/pdf' })
   });

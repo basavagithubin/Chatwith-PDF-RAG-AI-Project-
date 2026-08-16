@@ -1,17 +1,24 @@
 import { createClient } from '@insforge/sdk';
 
-const baseUrl = import.meta.env.VITE_INSFORGE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY as string | undefined;
+const baseUrl = String(import.meta.env.VITE_INSFORGE_URL || '').trim();
+const anonKey = String(import.meta.env.VITE_INSFORGE_ANON_KEY || '').trim();
+
+const createInsforgeClient = () => {
+  if (!baseUrl || !anonKey) return null;
+  try {
+    return createClient({ baseUrl, anonKey });
+  } catch (error) {
+    console.error('InsForge client failed to initialize', error);
+    return null;
+  }
+};
 
 /**
- * Auth is optional in local development: without credentials the app runs
- * unauthenticated rather than crashing on a missing client.
+ * Auth is optional: without credentials the app runs unauthenticated
+ * rather than crashing on a missing or invalid client.
  */
-export const isAuthConfigured = Boolean(baseUrl && anonKey);
-
-export const insforge = isAuthConfigured
-  ? createClient({ baseUrl: baseUrl as string, anonKey: anonKey as string })
-  : null;
+export const insforge = createInsforgeClient();
+export const isAuthConfigured = Boolean(insforge);
 
 export const getAccessToken = async () => {
   if (!insforge) return null;

@@ -1,6 +1,9 @@
 {
   "name": "pdf-chat-ai",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "apps/*"
   ],
