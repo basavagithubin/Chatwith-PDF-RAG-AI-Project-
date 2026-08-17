@@ -37,9 +37,10 @@ docker compose up --build
 The Express API uses Redis, BullMQ workers, and local PDF storage, so it cannot run as a Vercel serverless function. Deploy **`apps/web`** on Vercel and host the API with Docker, Railway, Render, or a VM.
 
 1. Import this GitHub repo in Vercel.
-2. Set **Root Directory** to `apps/web` (recommended). If it is currently `apps/api`, the repo includes a fallback `apps/api/vercel.json` that still builds the frontend.
-3. Vercel installs only the web workspace (`npm install --workspace=pdf-chat-ai-web`). Native API packages are not installed.
-4. Set these **Production** environment variables in the Vercel project, then redeploy:
+2. In **Project Settings → General → Root Directory**, set **`apps/web`** (recommended).
+3. In **Project Settings → Build & Development Settings**, turn **off** any override for Install Command or Build Command so `vercel.json` controls the build. If Install Command is stuck on `npm install --prefix apps/web`, disable the override and redeploy.
+4. Redeploy the latest **`main`** branch commit (not the initial “source repo import” snapshot).
+5. Set these **Production** environment variables, then redeploy:
 
 | Variable | Value |
 |----------|--------|
@@ -47,7 +48,7 @@ The Express API uses Redis, BullMQ workers, and local PDF storage, so it cannot 
 | `VITE_INSFORGE_URL` | Optional InsForge project URL |
 | `VITE_INSFORGE_ANON_KEY` | Optional InsForge anon key |
 
-4. On the API host, add the Vercel origin to `CORS_ORIGINS` (for example `https://your-app.vercel.app`) and restart the API.
+6. On the API host, add the Vercel origin to `CORS_ORIGINS` (for example `https://your-app.vercel.app`) and restart the API.
 
 `VITE_*` values are baked in at build time. Changing them requires a new Vercel deploy.
 
