@@ -1,12 +1,6 @@
-import { API_BASE, isApiConfigured } from '../lib/api.config';
+import { API_BASE } from '../lib/api.config';
 import { getAccessToken } from '../lib/insforge';
 const CHUNK_SIZE = Number(import.meta.env.VITE_UPLOAD_CHUNK_SIZE ?? 10_485_760);
-
-const requireApi = () => {
-  if (!isApiConfigured) {
-    throw new Error('API URL is not configured. Set VITE_API_BASE_URL on Vercel to your public API.');
-  }
-};
 
 const authHeaders = async (headers?: HeadersInit): Promise<HeadersInit> => {
   const token = await getAccessToken();
@@ -17,7 +11,6 @@ const authHeaders = async (headers?: HeadersInit): Promise<HeadersInit> => {
 };
 
 export const initUpload = async ({ name, size, checksum, chunkCount }: { name: string; size: number; checksum: string; chunkCount: number; }) => {
-  requireApi();
   const response = await fetch(`${API_BASE}/documents/upload/init`, {
     method: 'POST',
     headers: await authHeaders({ 'Content-Type': 'application/json' }),

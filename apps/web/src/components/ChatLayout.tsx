@@ -5,7 +5,6 @@ import Sidebar from './Sidebar';
 import UploadModal from './UploadModal';
 import { getDocuments } from '../services/documents.service';
 import { UploadContext } from '../context/UploadContext';
-import { isApiConfigured } from '../lib/api.config';
 import { LibraryDocument, LibraryNav } from '../lib/library.prefs';
 
 type ChatLayoutProps = {
@@ -22,9 +21,7 @@ export default function ChatLayout({ children, documentName, onDocumentsChange }
   const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiError, setApiError] = useState<string | null>(
-    isApiConfigured ? null : 'Set VITE_API_BASE_URL in Vercel to your public API URL (not localhost).'
-  );
+  const [apiError, setApiError] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nav, setNavState] = useState<LibraryNav>(
@@ -40,11 +37,6 @@ export default function ChatLayout({ children, documentName, onDocumentsChange }
   };
 
   const loadDocuments = async () => {
-    if (!isApiConfigured) {
-      setDocuments([]);
-      setIsLoading(false);
-      return;
-    }
     try {
       setDocuments(await getDocuments());
       setApiError(null);

@@ -42,11 +42,12 @@ The Express API uses Redis, BullMQ workers, and local PDF storage, so it cannot 
 4. Redeploy the latest **`main`** branch commit (not the initial “source repo import” snapshot).
 5. Set these **Production** environment variables, then redeploy:
 
-| Variable | Value |
-|----------|--------|
-| `VITE_API_BASE_URL` | Public API URL, e.g. `https://api.example.com/api` (not `localhost`) |
-| `VITE_INSFORGE_URL` | Optional InsForge project URL |
-| `VITE_INSFORGE_ANON_KEY` | Optional InsForge anon key |
+| Variable | Required | Value |
+|----------|----------|--------|
+| `API_BACKEND_URL` | **Yes** | Public Express API origin, e.g. `https://your-api.onrender.com` (no `/api` suffix). Vercel proxies browser calls from `/api` to this host. |
+| `VITE_INSFORGE_URL` | Optional | InsForge project URL, e.g. `https://gk3frfts.us-east.insforge.app` |
+| `VITE_INSFORGE_ANON_KEY` | Optional | InsForge anon key |
+| `VITE_API_BASE_URL` | Optional | Override frontend API path. Defaults to `/api` in production. |
 
 6. On the API host, add the Vercel origin to `CORS_ORIGINS` (for example `https://your-app.vercel.app`) and restart the API.
 
