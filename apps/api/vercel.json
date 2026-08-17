@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "npm install --workspace=pdf-chat-ai-web",
-  "buildCommand": "npm run build --workspace=pdf-chat-ai-web",
-  "outputDirectory": "apps/web/dist",
+  "installCommand": "cd ../.. && npm install --workspace=pdf-chat-ai-web",
+  "buildCommand": "cd ../.. && npm run build --workspace=pdf-chat-ai-web",
+  "outputDirectory": "../web/dist",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],

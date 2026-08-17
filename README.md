@@ -36,9 +36,10 @@ docker compose up --build
 
 The Express API uses Redis, BullMQ workers, and local PDF storage, so it cannot run as a Vercel serverless function. Deploy **`apps/web`** on Vercel and host the API with Docker, Railway, Render, or a VM.
 
-1. Import this GitHub repo in Vercel. Leave **Root Directory** as the repository root so `vercel.json` is used.
-2. Vercel installs and builds only the web app (`npm install --prefix apps/web`). Native API packages are not installed, which avoids production build crashes.
-3. Set these **Production** environment variables in the Vercel project, then redeploy:
+1. Import this GitHub repo in Vercel.
+2. Set **Root Directory** to `apps/web` (recommended). If it is currently `apps/api`, the repo includes a fallback `apps/api/vercel.json` that still builds the frontend.
+3. Vercel installs only the web workspace (`npm install --workspace=pdf-chat-ai-web`). Native API packages are not installed.
+4. Set these **Production** environment variables in the Vercel project, then redeploy:
 
 | Variable | Value |
 |----------|--------|
